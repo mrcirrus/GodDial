@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toronto God Dial — Jet Stream Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --border: #1e2228;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --red: #ff4545;
+    --red-dim: rgba(255,69,69,0.15);
+    --blue: #4599ff;
+    --blue-dim: rgba(69,153,255,0.15);
+    --purple: #b06aff;
+    --purple-dim: rgba(176,106,255,0.18);
+    --green: #45ffa0;
+    --yellow: #ffd94a;
+    --card-radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .header h1 {
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, var(--purple) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 6px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; } 50% { opacity:0.3; }
+  }
+
+  /* LEGEND */
+  .legend {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .legend-title {
+    grid-column: 1/-1;
+    font-size: 0.7rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.78rem;
+  }
+
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .legend-item strong {
+    font-weight: 700;
+    display: block;
+    font-size: 0.8rem;
+  }
+
+  .legend-item span {
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+
+  /* METRICS LEGEND */
+  .metrics-legend {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+
+  .metrics-legend-title {
+    font-size: 0.7rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .metric-item {
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--purple);
+  }
+
+  .metric-item strong {
+    font-size: 0.8rem;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .metric-item span {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    line-height: 1.4;
+  }
+
+  /* CALENDAR NAV */
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding: 0 4px;
+  }
+
+  .cal-nav button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    transition: border-color 0.2s;
+  }
+
+  .cal-nav button:hover { border-color: var(--purple); }
+
+  .cal-nav h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* CALENDAR */
+  .calendar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .cal-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cal-header div {
+    padding: 10px 0;
+    text-align: center;
+    font-size: 0.7rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .cal-day {
+    min-height: 72px;
+    padding: 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .cal-day:nth-child(7n) { border-right: none; }
+
+  .cal-day:hover { background: rgba(255,255,255,0.04); }
+  .cal-day.selected { outline: 2px solid var(--purple); outline-offset: -2px; }
+
+  .cal-day.empty { cursor: default; background: rgba(0,0,0,0.2); }
+  .cal-day.future { opacity: 0.35; cursor: not-allowed; }
+
+  .day-num {
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: 'Space Mono', monospace;
+    color: var(--text);
+  }
+
+  .cal-day.empty .day-num { color: var(--muted); }
+
+  .day-arrow {
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+
+  .day-label {
+    font-size: 0.58rem;
+    font-family: 'Space Mono', monospace;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .cal-day.increasing { background: var(--red-dim); }
+  .cal-day.decreasing { background: var(--blue-dim); }
+  .cal-day.perfect { background: var(--purple-dim); }
+
+  .cal-day.increasing .day-num { color: var(--red); }
+  .cal-day.decreasing .day-num { color: var(--blue); }
+  .cal-day.perfect .day-num { color: var(--purple); }
+
+  .loading-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--purple);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* DETAIL PANEL */
+  .detail-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 20px;
+    display: none;
+  }
+
+  .detail-panel.visible { display: block; }
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .detail-date {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .detail-verdict {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .verdict-increasing { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,69,69,0.3); }
+  .verdict-decreasing { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(69,153,255,0.3); }
+  .verdict-perfect { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(176,106,255,0.3); }
+
+  .detail-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .metric-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .metric-card-title {
+    font-size: 0.68rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  .metric-card-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .metric-card-change {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .change-up { color: var(--red); }
+  .change-down { color: var(--blue); }
+  .change-flat { color: var(--muted); }
+
+  .metric-card-target {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-top: 4px;
+  }
+
+  .status-bar-target {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .status-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s;
+  }
+
+  .detail-summary {
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--text);
+    border-left: 3px solid var(--purple);
+  }
+
+  .detail-summary strong {
+    color: var(--purple);
+  }
+
+  .score-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+  }
+
+  .error-msg {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 480px) {
+    .cal-day { min-height: 56px; padding: 5px; }
+    .day-label { display: none; }
+    .day-arrow { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Toronto God Dial</h1>
+  <p>Jet Stream Atmospheric Analysis — Is the dial too high or too low?</p>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">Connecting to Open-Meteo...</span>
+</div>
+
+<!-- COLOR LEGEND -->
+<div class="legend">
+  <div class="legend-title">Calendar Color Guide</div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:var(--red);"></div>
+    <div>
+      <strong>🔴 Red — Increasing (Too High)</strong>
+      <span>God dial trending upward. Jet speed rising above target or geopotential height dropping — amplifying trough, bad for Toronto warmth.</span>
+    </div>
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:var(--blue);"></div>
+    <div>
+      <strong>🔵 Blue — Decreasing (Too Low)</strong>
+      <span>God dial trending downward. Jet collapsing, geopotential recovering slowly — stalling pattern, low pressure orphaned over Toronto.</span>
+    </div>
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:var(--purple);"></div>
+    <div>
+      <strong>🟣 Purple — In Target Range</strong>
+      <span>All dials near optimal. Jet 130–160 km/h, geopotential ≥ 9350m, surface pressure ≥ 1015 hPa. God would leave it here.</span>
+    </div>
+  </div>
+</div>
+
+<!-- METRICS LEGEND -->
+<div class="metrics-legend">
+  <div class="metrics-legend-title">Data Sources & Metrics Used (Open-Meteo ERA5 + Forecast API — Free, No Key)</div>
+  <div class="metrics-grid">
+    <div class="metric-item">
+      <strong>200 hPa Wind Speed (km/h)</strong>
+      <span>True jet core level in May/summer. Target: 130–200 km/h. Below 130 = sub-jet, too low. Above 200 = too aggressive.</span>
+    </div>
+    <div class="metric-item">
+      <strong>300 hPa Wind Speed (km/h)</strong>
+      <span>Jet steering level. Target: 130–160 km/h. Official NOAA threshold: 130 km/h. Used to confirm jet presence.</span>
+    </div>
+    <div class="metric-item">
+      <strong>300 hPa Geopotential Height (m)</strong>
+      <span>Trough/ridge indicator. Normal May Toronto: ~9350–9450m. Below 9200m = deep cold trough. Above 9450m = ridge building.</span>
+    </div>
+    <div class="metric-item">
+      <strong>500 hPa Wind Speed (km/h)</strong>
+      <span>Mid-level steering. Shows wave amplitude indirectly. Target: 80–130 km/h over Toronto for progressive flow.</span>
+    </div>
+    <div class="metric-item">
+      <strong>Sea Level Pressure (hPa)</strong>
+      <span>Surface confirmation. Target: ≥1015 hPa over Toronto. Below 1008 hPa = low pressure dominating = dial too high upstream.</span>
+    </div>
+    <div class="metric-item">
+      <strong>God Dial Score (composite)</strong>
+      <span>Weighted composite of all 5 metrics vs targets. Score 0–100. Purple: 55–75. Red: trending toward extremes. Blue: collapsed.</span>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR NAV -->
+<div class="cal-nav">
+  <button onclick="prevMonth()">← Prev</button>
+  <h2 id="calTitle">Loading...</h2>
+  <button onclick="nextMonth()">Next →</button>
+</div>
+
+<!-- CALENDAR -->
+<div class="calendar">
+  <div class="cal-header">
+    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+  </div>
+  <div class="cal-grid" id="calGrid">
+    <div class="error-msg" style="grid-column:1/-1">Loading data...</div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <div class="detail-date" id="detailDate">—</div>
+    <div class="detail-verdict" id="detailVerdict">—</div>
+  </div>
+  <div class="detail-metrics" id="detailMetrics"></div>
+  <div class="detail-summary" id="detailSummary"></div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const LAT = 43.7;
+const LON = -79.42;
+const TARGETS = {
+  wind200:   { min: 130, ideal: 160, max: 200, label: '200 hPa Wind',  unit: 'km/h' },
+  wind300:   { min: 130, ideal: 145, max: 180, label: '300 hPa Wind',  unit: 'km/h' },
+  geo300:    { min: 9200, ideal: 9400, max: 9500, label: '300 hPa GeoPot', unit: 'm' },
+  wind500:   { min: 60,  ideal: 100,  max: 140, label: '500 hPa Wind',  unit: 'km/h' },
+  pressure:  { min: 1008, ideal: 1018, max: 1030, label: 'Sea Level P',  unit: 'hPa' }
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentYear  = new Date().getFullYear();
+let currentMonth = new Date().getMonth(); // 0-indexed
+let dayData      = {}; // keyed by "YYYY-MM-DD"
+let selectedDate = null;
+
+// ─── API FETCH ────────────────────────────────────────────────────────────────
+async function fetchMonthData(year, month) {
+  const start = `${year}-${String(month+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(year, month+1, 0).getDate();
+  const end   = `${year}-${String(month+1).padStart(2,'0')}-${lastDay}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const endDate = new Date(end); endDate.setHours(0,0,0,0);
+
+  // Use historical API for past dates, forecast API for future/current
+  const isHistorical = endDate < today;
+  const baseUrl = isHistorical
+    ? 'https://archive-api.open-meteo.com/v1/archive'
+    : 'https://api.open-meteo.com/v1/forecast';
+
+  const pastDays = isHistorical ? 0 : 92;
+
+  let url;
+  if (isHistorical) {
+    url = `${baseUrl}?latitude=${LAT}&longitude=${LON}`
+        + `&start_date=${start}&end_date=${end}`
+        + `&hourly=wind_speed_200hPa,wind_speed_300hPa,geopotential_height_300hPa,wind_speed_500hPa,surface_pressure`
+        + `&wind_speed_unit=kmh&timezone=America%2FToronto`;
+  } else {
+    url = `${baseUrl}?latitude=${LAT}&longitude=${LON}`
+        + `&start_date=${start}&end_date=${end}`
+        + `&hourly=wind_speed_200hPa,wind_speed_300hPa,geopotential_height_300hPa,wind_speed_500hPa,surface_pressure`
+        + `&wind_speed_unit=kmh&timezone=America%2FToronto&past_days=${pastDays}`;
+  }
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  return processHourlyToDaily(json, start, end);
+}
+
+function processHourlyToDaily(json, start, end) {
+  const h = json.hourly;
+  const times = h.time;
+  const result = {};
+
+  // Group by date
+  const byDate = {};
+  times.forEach((t, i) => {
+    const date = t.split('T')[0];
+    if (!byDate[date]) byDate[date] = { wind200:[], wind300:[], geo300:[], wind500:[], pressure:[] };
+    const d = byDate[date];
+    if (h.wind_speed_200hPa?.[i]  != null) d.wind200.push(h.wind_speed_200hPa[i]);
+    if (h.wind_speed_300hPa?.[i]  != null) d.wind300.push(h.wind_speed_300hPa[i]);
+    if (h.geopotential_height_300hPa?.[i] != null) d.geo300.push(h.geopotential_height_300hPa[i]);
+    if (h.wind_speed_500hPa?.[i]  != null) d.wind500.push(h.wind_speed_500hPa[i]);
+    if (h.surface_pressure?.[i]   != null) d.pressure.push(h.surface_pressure[i]);
+  });
+
+  Object.entries(byDate).forEach(([date, vals]) => {
+    const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+    const max = arr => arr.length ? Math.max(...arr) : null;
+    result[date] = {
+      wind200:  max(vals.wind200),
+      wind300:  max(vals.wind300),
+      geo300:   avg(vals.geo300),
+      wind500:  max(vals.wind500),
+      pressure: avg(vals.pressure),
+    };
+  });
+
+  return result;
+}
+
+function calcScore(d) {
+  // Returns 0-100, also returns individual metric status
+  if (!d) return { score: null, status: 'unknown', metrics: {} };
+
+  const metrics = {};
+  let total = 0, count = 0;
+
+  Object.entries(TARGETS).forEach(([key, t]) => {
+    const val = d[key];
+    if (val == null) return;
+
+    let score;
+    if (key === 'geo300' || key === 'pressure') {
+      // Higher = better (ridge, high pressure)
+      const range = t.max - t.min;
+      score = Math.min(100, Math.max(0, ((val - t.min) / range) * 100));
+    } else {
+      // Wind: want in sweet spot
+      if (val < t.min) score = Math.max(0, (val / t.min) * 60);
+      else if (val <= t.max) score = 60 + ((1 - Math.abs(val - t.ideal) / (t.max - t.min)) * 40);
+      else score = Math.max(0, 60 - ((val - t.max) / t.max) * 60);
+    }
+
+    const prevVal = metrics[key]?.prev;
+    metrics[key] = { val: Math.round(val * 10) / 10, score: Math.round(score), target: t };
+    total += score;
+    count++;
+  });
+
+  const composite = count ? total / count : null;
+  let status;
+  if (composite === null) status = 'unknown';
+  else if (composite >= 55 && composite <= 75) status = 'perfect';
+  else if (composite > 75) status = 'increasing'; // too high overall
+  else status = 'decreasing'; // too low
+
+  return { score: composite ? Math.round(composite) : null, status, metrics };
+}
+
+function calcDayStatus(dateStr, allData) {
+  const today = dateStr;
+  const d = allData[today];
+  if (!d) return null;
+
+  const dates = Object.keys(allData).sort();
+  const idx = dates.indexOf(today);
+  const prev = idx > 0 ? allData[dates[idx-1]] : null;
+
+  // Score for today
+  const { score, status, metrics } = calcScore(d);
+
+  // Change direction vs yesterday
+  let direction = 'flat';
+  if (prev) {
+    const prevScore = calcScore(prev).score;
+    if (score !== null && prevScore !== null) {
+      if (score > prevScore + 3) direction = 'up';
+      else if (score < prevScore - 3) direction = 'down';
+    }
+  }
+
+  // Determine calendar color
+  let calStatus;
+  if (status === 'perfect') {
+    calStatus = 'perfect';
+  } else {
+    // Use direction of change
+    calStatus = direction === 'up' ? 'increasing' : direction === 'down' ? 'decreasing' : status;
+  }
+
+  return { score, status, calStatus, metrics, direction, raw: d };
+}
+
+// ─── RENDER CALENDAR ──────────────────────────────────────────────────────────
+function renderCalendar() {
+  const grid = document.getElementById('calGrid');
+  const title = document.getElementById('calTitle');
+
+  const monthNames = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+  title.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+
+  grid.innerHTML = '';
+
+  // Empty cells
+  for (let i = 0; i < firstDay; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day empty';
+    grid.appendChild(cell);
+  }
+
+  // Day cells
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const cellDate = new Date(currentYear, currentMonth, day);
+    const isFuture = cellDate > today;
+
+    const cell = document.createElement('div');
+    cell.className = 'cal-day' + (isFuture ? ' future' : '');
+
+    const numDiv = document.createElement('div');
+    numDiv.className = 'day-num';
+    numDiv.textContent = day;
+    cell.appendChild(numDiv);
+
+    if (isFuture) {
+      grid.appendChild(cell);
+      return;
+    }
+
+    const info = dayData[dateStr] ? calcDayStatus(dateStr, dayData) : null;
+
+    if (info) {
+      cell.classList.add(info.calStatus);
+      const arrow = document.createElement('div');
+      arrow.className = 'day-arrow';
+      arrow.textContent = info.calStatus === 'increasing' ? '⬆️' 
+                        : info.calStatus === 'decreasing' ? '⬇️' 
+                        : '🟣';
+      cell.appendChild(arrow);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'day-label';
+      lbl.textContent = info.score != null ? `${info.score}/100` : '';
+      lbl.style.color = info.calStatus === 'increasing' ? 'var(--red)' 
+                      : info.calStatus === 'decreasing' ? 'var(--blue)' 
+                      : 'var(--purple)';
+      cell.appendChild(lbl);
+    } else {
+      const lbl = document.createElement('div');
+      lbl.className = 'day-label';
+      lbl.style.color = 'var(--muted)';
+      lbl.textContent = 'no data';
+      cell.appendChild(lbl);
+    }
+
+    if (dateStr === selectedDate) cell.classList.add('selected');
+
+    cell.addEventListener('click', () => {
+      if (isFuture) return;
+      selectDay(dateStr);
+    });
+
+    grid.appendChild(cell);
+  }
+}
+
+// ─── SELECT DAY ───────────────────────────────────────────────────────────────
+function selectDay(dateStr) {
+  selectedDate = dateStr;
+  renderCalendar();
+
+  const panel = document.getElementById('detailPanel');
+  const info = dayData[dateStr] ? calcDayStatus(dateStr, dayData) : null;
+
+  if (!info) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.classList.add('visible');
+  panel.style.display = 'block';
+
+  // Date
+  const d = new Date(dateStr + 'T12:00:00');
+  document.getElementById('detailDate').textContent = d.toLocaleDateString('en-CA', {
+    weekday:'long', year:'numeric', month:'long', day:'numeric'
+  });
+
+  // Verdict badge
+  const verdict = document.getElementById('detailVerdict');
+  verdict.className = 'detail-verdict verdict-' + info.calStatus;
+  verdict.textContent = info.calStatus === 'increasing' ? '⬆️ Dial Increasing (Too High / Rising)'
+                      : info.calStatus === 'decreasing' ? '⬇️ Dial Decreasing (Too Low / Falling)'
+                      : '🟣 In Target Range';
+
+  // Metrics
+  const metricsDiv = document.getElementById('detailMetrics');
+  metricsDiv.innerHTML = '';
+
+  const dates = Object.keys(dayData).sort();
+  const idx = dates.indexOf(dateStr);
+  const prevDate = idx > 0 ? dates[idx-1] : null;
+  const prevInfo = prevDate && dayData[prevDate] ? calcDayStatus(prevDate, dayData) : null;
+
+  Object.entries(info.metrics).forEach(([key, m]) => {
+    const prevVal = prevInfo?.metrics[key]?.val;
+    const diff = prevVal != null ? m.val - prevVal : null;
+    const diffStr = diff != null ? (diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)) : '—';
+    const diffClass = diff == null ? 'change-flat' : diff > 0.5 ? 'change-up' : diff < -0.5 ? 'change-down' : 'change-flat';
+    const diffArrow = diff == null ? '→' : diff > 0.5 ? '↑' : diff < -0.5 ? '↓' : '→';
+
+    // Determine if this metric is in range
+    const t = m.target;
+    let inRange, barColor, barPct;
+    if (key === 'geo300' || key === 'pressure') {
+      inRange = m.val >= t.min && m.val <= t.max;
+      barPct = Math.min(100, Math.max(0, ((m.val - (t.min - (t.max-t.min)*0.2)) / ((t.max + (t.max-t.min)*0.2) - (t.min - (t.max-t.min)*0.2))) * 100));
+      barColor = m.val < t.min ? 'var(--blue)' : m.val > t.max ? 'var(--red)' : 'var(--purple)';
+    } else {
+      inRange = m.val >= t.min && m.val <= t.max;
+      barPct = Math.min(100, (m.val / (t.max * 1.3)) * 100);
+      barColor = m.val < t.min ? 'var(--blue)' : m.val > t.max ? 'var(--red)' : 'var(--purple)';
+    }
+
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+    card.innerHTML = `
+      <div class="metric-card-title">${m.target.label}</div>
+      <div class="metric-card-value" style="color:${barColor}">${m.val} <span style="font-size:0.8rem">${m.target.unit}</span></div>
+      <div class="metric-card-change">
+        <span class="${diffClass}">${diffArrow} ${diffStr} vs prev day</span>
+      </div>
+      <div class="metric-card-target">Target: ${t.min}–${t.max} ${t.target.unit ?? t.unit} | Ideal: ${t.ideal} ${t.unit}</div>
+      <div class="status-bar-target">
+        <div class="status-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
+      </div>
+    `;
+    metricsDiv.appendChild(card);
+  });
+
+  // Summary
+  const summary = document.getElementById('detailSummary');
+  const geoVal = info.raw.geo300;
+  const w200   = info.raw.wind200;
+  const w300   = info.raw.wind300;
+  const slp    = info.raw.pressure;
+
+  let txt = `<strong>Composite score: ${info.score}/100</strong> — `;
+
+  if (info.calStatus === 'perfect') {
+    txt += `All dials in optimal range. The God dial is set correctly for Toronto today. Jet speed at upper levels is within target, geopotential height indicates a ridge or neutral pattern, and surface pressure supports settled conditions.`;
+  } else if (info.calStatus === 'increasing') {
+    txt += `The dial is trending too high or rising toward excess. `;
+    if (w200 > 200) txt += `200 hPa jet speed (${w200?.toFixed(0)} km/h) is above normal — likely amplifying a trough. `;
+    if (geoVal < 9200) txt += `Geopotential height (${geoVal?.toFixed(0)} m) is well below the 9350m normal — cold trough dominating. `;
+    if (slp < 1008) txt += `Surface pressure (${slp?.toFixed(1)} hPa) is low — active system overhead. `;
+    txt += `God would turn the amplitude dial down and flatten the wave pattern.`;
+  } else {
+    txt += `The dial is too low or collapsing. `;
+    if (w200 < 130) txt += `200 hPa jet speed (${w200?.toFixed(0)} km/h) is below the 130 km/h jet threshold — no real jet over Toronto. `;
+    if (geoVal > 9450) txt += `Geopotential height (${geoVal?.toFixed(0)} m) is above normal — ridge building but jet absent. `;
+    if (slp > 1020) txt += `Surface pressure (${slp?.toFixed(1)} hPa) is high but with weak flow — anticyclonic gloom risk. `;
+    txt += `God would turn the speed dial up to 140–150 km/h to create productive steering flow.`;
+  }
+
+  summary.innerHTML = txt;
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+async function loadCurrentMonth() {
+  const statusText = document.getElementById('statusText');
+  const statusDot  = document.getElementById('statusDot');
+  statusText.textContent = 'Fetching atmospheric data...';
+  statusDot.style.background = 'var(--yellow)';
+
+  renderCalendar(); // Show skeleton first
+
+  try {
+    const data = await fetchMonthData(currentYear, currentMonth);
+    Object.assign(dayData, data);
+    statusText.textContent = `Live data — Open-Meteo ERA5 + GFS | Toronto 43.7°N 79.4°W`;
+    statusDot.style.background = 'var(--green)';
+    renderCalendar();
+  } catch (err) {
+    console.error(err);
+    statusText.textContent = `Error: ${err.message}. Using cached data if available.`;
+    statusDot.style.background = 'var(--red)';
+    renderCalendar();
+  }
+}
+
+function prevMonth() {
+  currentMonth--;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  selectedDate = null;
+  document.getElementById('detailPanel').classList.remove('visible');
+  loadCurrentMonth();
+}
+
+function nextMonth() {
+  const today = new Date();
+  if (currentYear > today.getFullYear() || (currentYear === today.getFullYear() && currentMonth >= today.getMonth())) return;
+  currentMonth++;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  selectedDate = null;
+  document.getElementById('detailPanel').classList.remove('visible');
+  loadCurrentMonth();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+loadCurrentMonth();
+</script>
+</body>
+</html>
