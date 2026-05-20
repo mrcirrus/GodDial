@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 const LAT = 43.7, LON = -79.42;
 
 const TARGETS = {
-  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Jet",      unit: "km/h", key: "wind_speed_300hPa",          desc: "Steering-level jet speed (daily peak)" },
-  wind500:  { min: 55,  ideal: 95,  max: 140, label: "500 hPa Wind",     unit: "km/h", key: "wind_speed_500hPa",          desc: "Mid-level steering flow (daily peak)" },
+  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Jet",      unit: "km/h", key: "wind_speed_300hPa",          desc: "Steering-level jet speed (daily average)" },
+  wind500:  { min: 55,  ideal: 95,  max: 140, label: "500 hPa Wind",     unit: "km/h", key: "wind_speed_500hPa",          desc: "Mid-level steering flow (daily average)" },
   geo300:   { min: 9200, ideal: 9390, max: 9500, label: "300 hPa Height", unit: "m",   key: "geopotential_height_300hPa", desc: "Trough/ridge indicator (daily average)" },
   pressure: { min: 1008, ideal: 1016, max: 1030, label: "Sea Level P",   unit: "hPa",  key: "pressure_msl",               desc: "Surface pressure at ground level (daily average)" },
 };
@@ -41,8 +41,7 @@ function parseHourly(json) {
   const result = {};
   Object.entries(byDate).forEach(([date, arrs]) => {
     const avg = a => a.length ? a.reduce((x,y) => x+y,0)/a.length : null;
-    const max = a => a.length ? Math.max(...a) : null;
-    result[date] = { wind300:max(arrs.wind300), wind500:max(arrs.wind500), geo300:avg(arrs.geo300), pressure:avg(arrs.pressure) };
+    result[date] = { wind300:avg(arrs.wind300), wind500:avg(arrs.wind500), geo300:avg(arrs.geo300), pressure:avg(arrs.pressure) };
   });
   return result;
 }
