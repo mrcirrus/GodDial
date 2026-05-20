@@ -85,9 +85,16 @@ function calcDay(raw) {
   Object.keys(TARGETS).forEach(k => {
     const s = scoreMetric(k, raw[k]);
     scores[k] = s;
-    if (s != null) { total+=s; count++; }
+    if (s != null) {
+      // Geopotential is INVERTED in composite: higher geo = bad (negative contribution)
+      const contribution = k === "geo300" ? -s : s;
+      total += contribution;
+      count++;
+    }
   });
-  const composite = count ? Math.round(total/count) : null;
+  // Normalize: 4 metrics, but geo is negative, so we get result in range roughly -100 to 100, then scale
+  // Composite = (S300 + S500 - Sgeo + Spres) / 4
+  const composite = count ? Math.round((total / count) + 50) : null; // +50 to shift range back to 0-100
   const status = composite==null ? "unknown"
     : composite>=55 && composite<=75 ? "perfect"
     : composite>75 ? "high" : "low";
@@ -351,7 +358,7 @@ export default function App() {
             </div>
             <div className="src-scroll" style={{overflowY:"auto",flex:1,maxHeight:80,paddingRight:2}}>
               {[...Object.entries(TARGETS),
-                ["score", {label:"Composite Score",unit:"0–100",desc:"Formula: (Score₃₀₀ + Score₅₀₀ + ScoreGeo + ScorePres) ÷ 4. Each metric scored 0–100 by distance from ideal. Purple: 55–75. Blue: <55. Red: >75",min:"55–75",ideal:"purple",max:">75 red / <55 blue"}]
+                ["score", {label:"Composite Score",unit:"0–100",desc:"Formula: (Score₃₀₀ + Score₅₀₀ − ScoreGeo + ScorePres) ÷ 4. Rising geopotential (ridge) reduces score. Each metric scored 0–100. Purple: 55–75. Blue: <55. Red: >75",min:"55–75",ideal:"purple",max:">75 red / <55 blue"}]
               ].map(([k,t]) => (
                 <div key={k} style={{display:"flex",gap:6,marginBottom:5,alignItems:"flex-start"}}>
                   <div style={{width:2,background:"#a855f7",borderRadius:1,alignSelf:"stretch",flexShrink:0}}/>
@@ -398,7 +405,7 @@ export default function App() {
                 </div>
 
                 <div style={{fontSize:"0.5rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4,flexShrink:0}}>
-                  Composite: ({selInfo.scores?.wind300?.toFixed(0) || "—"} + {selInfo.scores?.wind500?.toFixed(0) || "—"} + {selInfo.scores?.geo300?.toFixed(0) || "—"} + {selInfo.scores?.pressure?.toFixed(0) || "—"}) ÷ 4 = <span style={{color:col.text,fontWeight:900}}>{selInfo.composite}/100</span>
+                  Composite: ({selInfo.scores?.wind300?.toFixed(0) || "—"} + {selInfo.scores?.wind500?.toFixed(0) || "—"} − {selInfo.scores?.geo300?.toFixed(0) || "—"} + {selInfo.scores?.pressure?.toFixed(0) || "—"}) ÷ 4 = <span style={{color:col.text,fontWeight:900}}>{selInfo.composite}/100</span>
                 </div>
                 <div style={{fontSize:"0.5rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5,flexShrink:0}}>
                   Individual Scores
