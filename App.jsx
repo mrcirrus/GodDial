@@ -3,10 +3,10 @@ import { useState, useEffect, useCallback } from "react";
 const LAT = 43.7, LON = -79.42;
 
 const TARGETS = {
-  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Jet",      unit: "km/h", key: "wind_speed_300hPa",          desc: "Steering-level jet speed (daily average)" },
-  wind500:  { min: 55,  ideal: 95,  max: 140, label: "500 hPa Wind",     unit: "km/h", key: "wind_speed_500hPa",          desc: "Mid-level steering flow (daily average)" },
+  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Wind",     unit: "km/h", key: "wind_speed_300hPa",          desc: "Steering-level wind speed (daily average)" },
+  wind500:  { min: 55,  ideal: 95,  max: 140, label: "500 hPa Wind",     unit: "km/h", key: "wind_speed_500hPa",          desc: "Mid-level wind speed (daily average)" },
   geo300:   { min: 9200, ideal: 9390, max: 9500, label: "300 hPa Height", unit: "m",   key: "geopotential_height_300hPa", desc: "Trough/ridge indicator (daily average)" },
-  pressure: { min: 1008, ideal: 1016, max: 1030, label: "Sea Level P",   unit: "hPa",  key: "pressure_msl",               desc: "Surface pressure at ground level (daily average)" },
+  pressure: { min: 1008, ideal: 1016, max: 1030, label: "Sea Level P",   unit: "hPa",  key: "pressure_msl",               desc: "Surface pressure (daily average)" },
 };
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -219,58 +219,56 @@ export default function App() {
       `}</style>
 
       {/* HEADER */}
-      <div style={{textAlign:"center",marginBottom:18}}>
-        <h1 style={{fontSize:"clamp(1.5rem,4vw,2.2rem)",fontWeight:900,letterSpacing:"-0.03em",background:"linear-gradient(135deg,#fff 30%,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",margin:0}}>
+      <div style={{textAlign:"center",marginBottom:12}}>
+        <h1 style={{fontSize:"clamp(1.3rem,3.5vw,1.8rem)",fontWeight:900,letterSpacing:"-0.03em",background:"linear-gradient(135deg,#fff 30%,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",margin:0}}>
           Toronto God Dial
         </h1>
-        <p style={{color:"#6b7280",fontSize:"0.82rem",marginTop:5,fontFamily:"monospace"}}>
-          Jet Stream Atmospheric Analysis — Is the dial too high, too low, or just right?
+        <p style={{color:"#6b7280",fontSize:"0.75rem",marginTop:3,fontFamily:"monospace"}}>
+          Jet Stream Analysis — Dial Status?
         </p>
       </div>
 
       {/* STATUS */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:14,fontFamily:"monospace",fontSize:"0.74rem",color:"#6b7280"}}>
-        <div style={{width:8,height:8,borderRadius:"50%",background:dotColor,boxShadow:`0 0 5px ${dotColor}`,flexShrink:0}}/>
-        <span>{loading?"Fetching from Open-Meteo…":error?`Error: ${error.slice(0,90)}`:"Live · Historical Forecast API · Toronto 43.7°N 79.4°W"}</span>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:10,fontFamily:"monospace",fontSize:"0.68rem",color:"#6b7280"}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:dotColor,boxShadow:`0 0 4px ${dotColor}`,flexShrink:0}}/>
+        <span>{loading?"Fetching…":error?`Error: ${error.slice(0,80)}`:"Live · Open-Meteo · Toronto 43.7°N 79.4°W"}</span>
       </div>
 
-      {/* TWO-COLUMN MAIN LAYOUT: Calendar+Legend on left, Data Sources+Detail on right */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:4}}>
+      {/* TWO-COLUMN MAIN LAYOUT */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,minHeight:"calc(100vh - 220px)"}}>
 
-        {/* LEFT COLUMN: Legend + Calendar */}
-        <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:"600px"}}>
+        {/* LEFT COLUMN */}
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
 
           {/* Color Legend */}
-          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"11px 14px",flexShrink:0}}>
-            <div style={{fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:9}}>Calendar Color Guide</div>
+          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"9px 12px",flexShrink:0}}>
+            <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:7}}>Color Guide</div>
             {[
-              {dot:"#ef4444",text:"#f47070",label:"Red — Dial Too High",    desc:"Jet over-amplified. Rossby wave buckling south. Cold trough digging over Toronto."},
-              {dot:"#3b82f6",text:"#60a5fa",label:"Blue — Dial Too Low",    desc:"Jet collapsed. Systems stalling. No steering current to flush weather east."},
-              {dot:"#a855f7",text:"#b07af5",label:"Purple — Target Range",  desc:"All 5 metrics near optimal. 130–185 km/h jet, geo ≥9350 m, SLP ≥1015 hPa."},
+              {dot:"#ef4444",text:"#f47070",label:"Red — Too High",    desc:"Over-amplified. Cold trough digging south."},
+              {dot:"#3b82f6",text:"#60a5fa",label:"Blue — Too Low",    desc:"Collapsed. Systems stalling. No steering."},
+              {dot:"#a855f7",text:"#b07af5",label:"Purple — Target",   desc:"Optimal. 130–185 km/h jet. Geo ≥9350 m."},
             ].map(({dot,text,label,desc}) => (
-              <div key={label} style={{display:"flex",gap:9,marginBottom:8,alignItems:"flex-start"}}>
-                <div style={{width:8,height:8,borderRadius:2,background:dot,flexShrink:0,marginTop:4}}/>
+              <div key={label} style={{display:"flex",gap:7,marginBottom:6,alignItems:"flex-start"}}>
+                <div style={{width:7,height:7,borderRadius:2,background:dot,flexShrink:0,marginTop:3}}/>
                 <div>
-                  <div style={{fontSize:"0.75rem",fontWeight:700,color:text,lineHeight:1.2,marginBottom:2}}>{label}</div>
-                  <div style={{fontSize:"0.68rem",color:"#6b7280",lineHeight:1.4}}>{desc}</div>
+                  <div style={{fontSize:"0.7rem",fontWeight:700,color:text,lineHeight:1.15,marginBottom:1}}>{label}</div>
+                  <div style={{fontSize:"0.62rem",color:"#6b7280",lineHeight:1.3}}>{desc}</div>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Calendar */}
-          <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
-            {/* Nav */}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <button onClick={goPrev} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"monospace",fontSize:"0.74rem"}}>← Prev</button>
-              <span style={{fontSize:"1rem",fontWeight:700}}>{MONTH_NAMES[month]} {year}</span>
-              <button onClick={goNext} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"monospace",fontSize:"0.74rem"}}>Next →</button>
+          <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4}}>
+              <button onClick={goPrev} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"5px 10px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:"0.68rem"}}>← Prev</button>
+              <span style={{fontSize:"0.95rem",fontWeight:700}}>{MONTH_NAMES[month]} {year}</span>
+              <button onClick={goNext} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"5px 10px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:"0.68rem"}}>Next →</button>
             </div>
-            {/* Grid */}
             <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,overflow:"hidden",flex:1,display:"flex",flexDirection:"column"}}>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid #1e2230",flexShrink:0}}>
                 {DAY_NAMES.map(d => (
-                  <div key={d} style={{padding:"7px 0",textAlign:"center",fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em"}}>{d}</div>
+                  <div key={d} style={{padding:"5px 0",textAlign:"center",fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.03em"}}>{d}</div>
                 ))}
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",flex:1}}>
@@ -290,10 +288,10 @@ export default function App() {
 
                   let arrow = null;
                   if (info) {
-                    if (delta==null)        arrow = <span style={{fontSize:"0.7rem",color:"#4b5563",lineHeight:1}}>–</span>;
-                    else if (Math.abs(delta)<=1) arrow = <span style={{fontSize:"0.75rem",color:"#6b7280",lineHeight:1}}>→</span>;
-                    else if (delta>0)       arrow = <span style={{fontSize:"0.9rem",color:col.text,lineHeight:1,fontWeight:700}}>↑</span>;
-                    else                    arrow = <span style={{fontSize:"0.9rem",color:col.text,lineHeight:1,fontWeight:700}}>↓</span>;
+                    if (delta==null)        arrow = <span style={{fontSize:"0.65rem",color:"#4b5563",lineHeight:1}}>–</span>;
+                    else if (Math.abs(delta)<=1) arrow = <span style={{fontSize:"0.68rem",color:"#6b7280",lineHeight:1}}>→</span>;
+                    else if (delta>0)       arrow = <span style={{fontSize:"0.85rem",color:col.text,lineHeight:1,fontWeight:700}}>↑</span>;
+                    else                    arrow = <span style={{fontSize:"0.85rem",color:col.text,lineHeight:1,fontWeight:700}}>↓</span>;
                   }
 
                   return (
@@ -302,22 +300,23 @@ export default function App() {
                       className="day-cell"
                       onClick={() => { if (!isFuture && info) setSelected(dateStr===selected?null:dateStr); }}
                       style={{
-                        padding:"5px 3px",
+                        padding:"4px 2px",
                         borderRight:"1px solid #1e2230", borderBottom:"1px solid #1e2230",
                         cursor:isFuture||!info?"default":"pointer",
-                        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", gap:1,
+                        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", gap:0.5,
                         opacity:isFuture?0.3:1,
                         background:info?col.bg:"transparent",
                         outline:isSel?`2px solid ${col.border}`:"none",
                         outlineOffset:-2,
                         transition:"background 0.12s",
+                        minHeight:"auto",
                       }}
                     >
-                      <div style={{fontSize:"0.72rem",fontWeight:700,fontFamily:"monospace",color:info?col.text:"#9ca3af"}}>{day}</div>
-                      {loading&&!info&&<div style={{width:8,height:8,border:"1.5px solid #1e2230",borderTopColor:"#a855f7",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
+                      <div style={{fontSize:"0.66rem",fontWeight:700,fontFamily:"monospace",color:info?col.text:"#9ca3af"}}>{day}</div>
+                      {loading&&!info&&<div style={{width:6,height:6,border:"1px solid #1e2230",borderTopColor:"#a855f7",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
                       {arrow}
-                      {info?.composite!=null && <div style={{fontSize:"0.52rem",fontFamily:"monospace",color:col.text,textAlign:"center"}}>{info.composite}</div>}
-                      {!info&&!loading&&!isFuture&&<div style={{fontSize:"0.48rem",color:"#4b5563",fontFamily:"monospace"}}>—</div>}
+                      {info?.composite!=null && <div style={{fontSize:"0.48rem",fontFamily:"monospace",color:col.text,textAlign:"center"}}>{info.composite}</div>}
+                      {!info&&!loading&&!isFuture&&<div style={{fontSize:"0.44rem",color:"#4b5563",fontFamily:"monospace"}}>—</div>}
                     </div>
                   );
                 })}
@@ -326,26 +325,26 @@ export default function App() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Data Sources + Detail Panel */}
-        <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:"600px"}}>
+        {/* RIGHT COLUMN */}
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
 
           {/* Data Sources */}
-          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"11px 14px",display:"flex",flexDirection:"column",flexShrink:0}}>
-            <div style={{fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:9,flexShrink:0}}>
-              Data Sources · Open-Meteo (Free · No API Key)
+          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"9px 12px",display:"flex",flexDirection:"column",flexShrink:0}}>
+            <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6,flexShrink:0}}>
+              Data Sources
             </div>
-            <div className="src-scroll" style={{overflowY:"auto",flex:1,maxHeight:100,paddingRight:3}}>
+            <div className="src-scroll" style={{overflowY:"auto",flex:1,maxHeight:80,paddingRight:2}}>
               {[...Object.entries(TARGETS),
-                ["score", {label:"Composite Score",unit:"0–100",desc:"Average of all 5 metrics",min:"55–75",ideal:"purple",max:">75 red / <55 blue"}]
+                ["score", {label:"Composite Score",unit:"0–100",desc:"Formula: (Score₃₀₀ + Score₅₀₀ + ScoreGeo + ScorePres) ÷ 4. Each metric scored 0–100 by distance from ideal. Purple: 55–75. Blue: <55. Red: >75",min:"55–75",ideal:"purple",max:">75 red / <55 blue"}]
               ].map(([k,t]) => (
-                <div key={k} style={{display:"flex",gap:8,marginBottom:6,alignItems:"flex-start"}}>
+                <div key={k} style={{display:"flex",gap:6,marginBottom:5,alignItems:"flex-start"}}>
                   <div style={{width:2,background:"#a855f7",borderRadius:1,alignSelf:"stretch",flexShrink:0}}/>
                   <div>
-                    <span style={{fontSize:"0.71rem",fontWeight:700,color:"#d1d5db"}}>{t.label}</span>
-                    {t.unit && <span style={{fontSize:"0.66rem",color:"#6b7280",marginLeft:5}}>({t.unit})</span>}
-                    <div style={{fontSize:"0.63rem",color:"#6b7280",marginTop:1}}>{t.desc}</div>
+                    <span style={{fontSize:"0.65rem",fontWeight:700,color:"#d1d5db"}}>{t.label}</span>
+                    {t.unit && <span style={{fontSize:"0.6rem",color:"#6b7280",marginLeft:4}}>({t.unit})</span>}
+                    <div style={{fontSize:"0.58rem",color:"#6b7280",marginTop:1,lineHeight:1.3}}>{t.desc}</div>
                     {t.min && t.ideal && k!=="score" && (
-                      <div style={{fontSize:"0.6rem",color:"#4b5563",fontFamily:"monospace"}}>Target {t.min}–{t.max} · Ideal {t.ideal}</div>
+                      <div style={{fontSize:"0.55rem",color:"#4b5563",fontFamily:"monospace"}}>Target {t.min}–{t.max}</div>
                     )}
                   </div>
                 </div>
@@ -360,35 +359,32 @@ export default function App() {
             const st = selInfo.status;
             const col = C[st];
             const deltaStr = selInfo.delta==null ? "first" : selInfo.delta===0 ? "→" : `${selInfo.delta>0?"+":""}${selInfo.delta}`;
-            const badgeText = st==="perfect"?"🟣 Target":st==="high"?"⬆ Too High":"⬇ Too Low";
+            const badgeText = st==="perfect"?"🟣 Target":st==="high"?"⬆ High":"⬇ Low";
 
             return (
-              <div style={{background:"#13161e",border:`1px solid ${col.border}`,borderRadius:10,padding:"11px 14px",flex:1,display:"flex",flexDirection:"column",overflowY:"auto"}}>
-                {/* Header */}
-                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:6,marginBottom:10,flexShrink:0}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:"0.92rem",fontWeight:800,lineHeight:1.1}}>{label}</div>
-                    <div style={{fontSize:"0.65rem",color:"#6b7280",marginTop:2}}>Click day to switch</div>
+              <div style={{background:"#13161e",border:`1px solid ${col.border}`,borderRadius:10,padding:"9px 12px",flex:1,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:4,marginBottom:8,flexShrink:0}}>
+                  <div>
+                    <div style={{fontSize:"0.82rem",fontWeight:800,lineHeight:1}}>{label}</div>
+                    <div style={{fontSize:"0.6rem",color:"#6b7280",marginTop:1}}>Click day to switch</div>
                   </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,flexShrink:0}}>
-                    <span style={{background:col.bg,color:col.text,border:`1px solid ${col.border}`,padding:"3px 10px",borderRadius:16,fontSize:"0.72rem",fontWeight:700,whiteSpace:"nowrap"}}>{badgeText}</span>
-                    <span style={{fontFamily:"monospace",fontSize:"1.3rem",fontWeight:900,color:col.text,lineHeight:1}}>
-                      {selInfo.composite??"-"}<span style={{fontSize:"0.75rem",fontWeight:400}}>/100</span>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+                    <span style={{background:col.bg,color:col.text,border:`1px solid ${col.border}`,padding:"2px 8px",borderRadius:14,fontSize:"0.65rem",fontWeight:700,whiteSpace:"nowrap"}}>{badgeText}</span>
+                    <span style={{fontFamily:"monospace",fontSize:"1.1rem",fontWeight:900,color:col.text,lineHeight:1}}>
+                      {selInfo.composite??"-"}<span style={{fontSize:"0.65rem",fontWeight:400}}>/100</span>
                     </span>
-                    <span style={{fontSize:"0.62rem",color:"#6b7280",fontFamily:"monospace"}}>{deltaStr} vs prev</span>
+                    <span style={{fontSize:"0.55rem",color:"#6b7280",fontFamily:"monospace"}}>{deltaStr} vs prev</span>
                   </div>
                 </div>
 
-                {/* Summary narrative */}
-                <div style={{background:col.bg,borderLeft:`2px solid ${col.border}`,padding:"8px 10px",borderRadius:"0 6px 6px 0",marginBottom:10,fontSize:"0.77rem",lineHeight:1.6,color:"#d1d5db",flexShrink:0}}>
+                <div style={{background:col.bg,borderLeft:`2px solid ${col.border}`,padding:"6px 8px",borderRadius:"0 5px 5px 0",marginBottom:8,fontSize:"0.7rem",lineHeight:1.5,color:"#d1d5db",flexShrink:0}}>
                   {buildNarrative(selInfo)}
                 </div>
 
-                {/* Metrics breakdown — scrollable if needed */}
-                <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:7,flexShrink:0}}>
+                <div style={{fontSize:"0.5rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5,flexShrink:0}}>
                   Metrics
                 </div>
-                <div style={{display:"flex",flexDirection:"column",gap:6,overflowY:"auto",flex:1}}>
+                <div style={{display:"flex",flexDirection:"column",gap:4,overflowY:"auto",flex:1}}>
                   {Object.entries(TARGETS).map(([k,t]) => {
                     const val = selInfo.raw?.[k];
                     const score = selInfo.scores?.[k];
@@ -397,21 +393,21 @@ export default function App() {
                     const pct = score!=null ? Math.min(100,Math.max(0,Math.round(score))) : 0;
 
                     return (
-                      <div key={k} style={{background:"rgba(255,255,255,0.02)",borderRadius:6,padding:"7px 9px",border:"1px solid #1e2230",flexShrink:0}}>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,gap:4}}>
-                          <span style={{fontWeight:700,fontSize:"0.72rem",color:"#e4e8f0"}}>{t.label}</span>
-                          <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.85rem",color:mc.text}}>
+                      <div key={k} style={{background:"rgba(255,255,255,0.015)",borderRadius:5,padding:"6px 8px",border:"1px solid #1e2230",flexShrink:0}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,gap:3}}>
+                          <span style={{fontWeight:700,fontSize:"0.65rem",color:"#e4e8f0"}}>{t.label}</span>
+                          <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.78rem",color:mc.text}}>
                             {val!=null?val.toFixed(k==="geo300"?0:1):"—"} {t.unit}
                           </span>
                         </div>
-                        <div style={{height:2,background:"#1e2230",borderRadius:1,marginBottom:5,overflow:"hidden"}}>
+                        <div style={{height:2,background:"#1e2230",borderRadius:1,marginBottom:3,overflow:"hidden"}}>
                           <div style={{height:"100%",width:`${pct}%`,background:mc.text,borderRadius:1}}/>
                         </div>
-                        <div style={{fontSize:"0.64rem",color:"#9ca3af",lineHeight:1.5,marginBottom:3}}>
-                          {explainMetric(k, val, selInfo.prevRaw?.[k]).slice(0,120)}...
+                        <div style={{fontSize:"0.58rem",color:"#9ca3af",lineHeight:1.4,marginBottom:2}}>
+                          {explainMetric(k, val, selInfo.prevRaw?.[k]).slice(0,100)}...
                         </div>
-                        <div style={{fontSize:"0.6rem",color:"#4b5563",fontFamily:"monospace"}}>
-                          Target {t.min}–{t.max}{zone==="low"?" ↙":zone==="high"?" ↗":" ✓"}
+                        <div style={{fontSize:"0.54rem",color:"#4b5563",fontFamily:"monospace"}}>
+                          {t.min}–{t.max}{zone==="low"?" ↙":zone==="high"?" ↗":" ✓"}
                         </div>
                       </div>
                     );
@@ -420,8 +416,8 @@ export default function App() {
               </div>
             );
           })() : (
-            <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"14px",flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#6b7280",fontSize:"0.8rem",textAlign:"center",fontFamily:"monospace"}}>
-              Click a calendar day to see the full breakdown
+            <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:12,flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#6b7280",fontSize:"0.73rem",textAlign:"center",fontFamily:"monospace"}}>
+              Click a day to see breakdown
             </div>
           )}
         </div>
