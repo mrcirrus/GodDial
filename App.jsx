@@ -3,11 +3,10 @@ import { useState, useEffect, useCallback } from "react";
 const LAT = 43.7, LON = -79.42;
 
 const TARGETS = {
-  wind200:  { min: 130, ideal: 160, max: 210, label: "200 hPa Jet",      unit: "km/h", key: "wind_speed_200hPa",          desc: "Upper jet stream core speed" },
-  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Jet",      unit: "km/h", key: "wind_speed_300hPa",          desc: "Steering-level jet speed" },
-  geo300:   { min: 9200, ideal: 9390, max: 9500, label: "300 hPa Height", unit: "m",   key: "geopotential_height_300hPa", desc: "Trough/ridge indicator (normal May: 9350–9450 m)" },
-  wind500:  { min: 55,  ideal: 95,  max: 140, label: "500 hPa Wind",     unit: "km/h", key: "wind_speed_500hPa",          desc: "Mid-level steering flow" },
-  pressure: { min: 1008, ideal: 1016, max: 1030, label: "Sea Level P",   unit: "hPa",  key: "pressure_msl",               desc: "Surface pressure at ground level" },
+  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Jet",      unit: "km/h", key: "wind_speed_300hPa",          desc: "Steering-level jet speed (daily peak)" },
+  wind500:  { min: 55,  ideal: 95,  max: 140, label: "500 hPa Wind",     unit: "km/h", key: "wind_speed_500hPa",          desc: "Mid-level steering flow (daily peak)" },
+  geo300:   { min: 9200, ideal: 9390, max: 9500, label: "300 hPa Height", unit: "m",   key: "geopotential_height_300hPa", desc: "Trough/ridge indicator (daily average)" },
+  pressure: { min: 1008, ideal: 1016, max: 1030, label: "Sea Level P",   unit: "hPa",  key: "pressure_msl",               desc: "Surface pressure at ground level (daily average)" },
 };
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -18,7 +17,7 @@ async function fetchMonthData(year, month) {
   const start = `${year}-${pad(month+1)}-01`;
   const lastDay = new Date(year, month+1, 0).getDate();
   const end = `${year}-${pad(month+1)}-${pad(lastDay)}`;
-  const pvars = ["wind_speed_200hPa","wind_speed_300hPa","geopotential_height_300hPa","wind_speed_500hPa"].join(",");
+  const pvars = ["wind_speed_300hPa","wind_speed_500hPa","geopotential_height_300hPa"].join(",");
   const url = `https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${end}&hourly=${pvars},pressure_msl&wind_speed_unit=kmh&timezone=America%2FToronto`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).slice(0,200)}`);
@@ -31,20 +30,19 @@ function parseHourly(json) {
   const byDate = {};
   h.time.forEach((t, i) => {
     const date = t.split("T")[0];
-    if (!byDate[date]) byDate[date] = { wind200:[], wind300:[], geo300:[], wind500:[], pressure:[] };
+    if (!byDate[date]) byDate[date] = { wind300:[], wind500:[], geo300:[], pressure:[] };
     const d = byDate[date];
     const push = (arr, val) => { if (val != null && !isNaN(val)) arr.push(val); };
-    push(d.wind200,  h["wind_speed_200hPa"]?.[i]);
     push(d.wind300,  h["wind_speed_300hPa"]?.[i]);
-    push(d.geo300,   h["geopotential_height_300hPa"]?.[i]);
     push(d.wind500,  h["wind_speed_500hPa"]?.[i]);
+    push(d.geo300,   h["geopotential_height_300hPa"]?.[i]);
     push(d.pressure, h["pressure_msl"]?.[i]);
   });
   const result = {};
   Object.entries(byDate).forEach(([date, arrs]) => {
     const avg = a => a.length ? a.reduce((x,y) => x+y,0)/a.length : null;
     const max = a => a.length ? Math.max(...a) : null;
-    result[date] = { wind200:max(arrs.wind200), wind300:max(arrs.wind300), geo300:avg(arrs.geo300), wind500:max(arrs.wind500), pressure:avg(arrs.pressure) };
+    result[date] = { wind300:max(arrs.wind300), wind500:max(arrs.wind500), geo300:avg(arrs.geo300), pressure:avg(arrs.pressure) };
   });
   return result;
 }
@@ -146,7 +144,7 @@ function buildNarrative(info) {
   });
 
   if (status === "perfect") {
-    return `The God Dial was dialled in today. All five atmospheric layers were reading close to their ideal values — the jet stream was driving progressive west-to-east flow at the right speed, the atmosphere wasn't buckled into a cold trough, and surface pressure supported settled conditions. This is exactly where the hypothetical dial should sit.`;
+    return `The God Dial was dialled in today. All four atmospheric layers were reading close to their ideal values — the jet stream was driving progressive west-to-east flow at the right speed, the atmosphere wasn't buckled into a cold trough, and surface pressure supported settled conditions. This is exactly where the hypothetical dial should sit.`;
   }
   if (status === "high") {
     const offenders = outOfRange.filter(k => metricZone(k, raw?.[k])==="high").map(k => TARGETS[k].label);
