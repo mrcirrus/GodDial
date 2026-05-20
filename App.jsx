@@ -237,201 +237,198 @@ export default function App() {
         <span>{loading?"Fetching from Open-Meteo…":error?`Error: ${error.slice(0,90)}`:"Live · Historical Forecast API · Toronto 43.7°N 79.4°W"}</span>
       </div>
 
-      {/* TWO-COLUMN INFO ROW */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+      {/* TWO-COLUMN MAIN LAYOUT: Calendar+Legend on left, Data Sources+Detail on right */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:4}}>
 
-        {/* LEFT — Color Legend (compact, no overflow) */}
-        <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"11px 14px"}}>
-          <div style={{fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:9}}>Calendar Color Guide</div>
-          {[
-            {dot:"#ef4444",text:"#f47070",label:"Red — Dial Too High",    desc:"Jet over-amplified. Rossby wave buckling south. Cold trough digging over Toronto."},
-            {dot:"#3b82f6",text:"#60a5fa",label:"Blue — Dial Too Low",    desc:"Jet collapsed. Systems stalling. No steering current to flush weather east."},
-            {dot:"#a855f7",text:"#b07af5",label:"Purple — Target Range",  desc:"All 5 metrics near optimal. 130–185 km/h jet, geo ≥9350 m, SLP ≥1015 hPa."},
-          ].map(({dot,text,label,desc}) => (
-            <div key={label} style={{display:"flex",gap:9,marginBottom:8,alignItems:"flex-start"}}>
-              <div style={{width:8,height:8,borderRadius:2,background:dot,flexShrink:0,marginTop:4}}/>
-              <div>
-                <div style={{fontSize:"0.75rem",fontWeight:700,color:text,lineHeight:1.2,marginBottom:2}}>{label}</div>
-                <div style={{fontSize:"0.68rem",color:"#6b7280",lineHeight:1.4}}>{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* LEFT COLUMN: Legend + Calendar */}
+        <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:"600px"}}>
 
-        {/* RIGHT — Data Sources scrollable */}
-        <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"11px 14px",display:"flex",flexDirection:"column"}}>
-          <div style={{fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:9,flexShrink:0}}>
-            Data Sources · Open-Meteo (Free · No API Key)
-          </div>
-          <div className="src-scroll" style={{overflowY:"auto",flex:1,maxHeight:130,paddingRight:3}}>
-            {[...Object.entries(TARGETS),
-              ["score", {label:"Composite Score",unit:"0–100",desc:"Average of all 5 metrics",min:"55–75",ideal:"purple",max:">75 red / <55 blue"}]
-            ].map(([k,t]) => (
-              <div key={k} style={{display:"flex",gap:8,marginBottom:7,alignItems:"flex-start"}}>
-                <div style={{width:2,background:"#a855f7",borderRadius:1,alignSelf:"stretch",flexShrink:0}}/>
+          {/* Color Legend */}
+          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"11px 14px",flexShrink:0}}>
+            <div style={{fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:9}}>Calendar Color Guide</div>
+            {[
+              {dot:"#ef4444",text:"#f47070",label:"Red — Dial Too High",    desc:"Jet over-amplified. Rossby wave buckling south. Cold trough digging over Toronto."},
+              {dot:"#3b82f6",text:"#60a5fa",label:"Blue — Dial Too Low",    desc:"Jet collapsed. Systems stalling. No steering current to flush weather east."},
+              {dot:"#a855f7",text:"#b07af5",label:"Purple — Target Range",  desc:"All 5 metrics near optimal. 130–185 km/h jet, geo ≥9350 m, SLP ≥1015 hPa."},
+            ].map(({dot,text,label,desc}) => (
+              <div key={label} style={{display:"flex",gap:9,marginBottom:8,alignItems:"flex-start"}}>
+                <div style={{width:8,height:8,borderRadius:2,background:dot,flexShrink:0,marginTop:4}}/>
                 <div>
-                  <span style={{fontSize:"0.73rem",fontWeight:700,color:"#d1d5db"}}>{t.label}</span>
-                  {t.unit && <span style={{fontSize:"0.68rem",color:"#6b7280",marginLeft:5}}>({t.unit})</span>}
-                  <div style={{fontSize:"0.65rem",color:"#6b7280",marginTop:1}}>{t.desc}</div>
-                  {t.min && t.ideal && k!=="score" && (
-                    <div style={{fontSize:"0.62rem",color:"#4b5563",fontFamily:"monospace"}}>Target {t.min}–{t.max} · Ideal {t.ideal}</div>
-                  )}
+                  <div style={{fontSize:"0.75rem",fontWeight:700,color:text,lineHeight:1.2,marginBottom:2}}>{label}</div>
+                  <div style={{fontSize:"0.68rem",color:"#6b7280",lineHeight:1.4}}>{desc}</div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
 
-      {/* CALENDAR NAV */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-        <button onClick={goPrev} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"6px 14px",borderRadius:6,cursor:"pointer",fontFamily:"monospace",fontSize:"0.76rem"}}>← Prev</button>
-        <span style={{fontSize:"1.05rem",fontWeight:700}}>{MONTH_NAMES[month]} {year}</span>
-        <button onClick={goNext} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"6px 14px",borderRadius:6,cursor:"pointer",fontFamily:"monospace",fontSize:"0.76rem"}}>Next →</button>
-      </div>
-
-      {/* CALENDAR GRID */}
-      <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,overflow:"hidden",marginBottom:16}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid #1e2230"}}>
-          {DAY_NAMES.map(d => (
-            <div key={d} style={{padding:"8px 0",textAlign:"center",fontSize:"0.63rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em"}}>{d}</div>
-          ))}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
-          {Array.from({length:firstDay}).map((_,i) => (
-            <div key={`e${i}`} style={{minHeight:78,borderRight:"1px solid #1e2230",borderBottom:"1px solid #1e2230",background:"rgba(0,0,0,0.1)"}}/>
-          ))}
-          {Array.from({length:daysInMo}).map((_,i) => {
-            const day = i+1;
-            const pad = n => String(n).padStart(2,"0");
-            const dateStr = `${year}-${pad(month+1)}-${pad(day)}`;
-            const isFuture = new Date(year, month, day) > today;
-            const info = !isFuture ? getInfo(dateStr) : null;
-            const isSel = selected===dateStr;
-            const st = info?.status ?? "unknown";
-            const col = C[st];
-            const delta = info?.delta ?? null;
-
-            // Arrow direction — always shown, color matches status
-            let arrow = null;
-            if (info) {
-              if (delta==null)        arrow = <span style={{fontSize:"0.75rem",color:"#4b5563",lineHeight:1}}>–</span>;
-              else if (Math.abs(delta)<=1) arrow = <span style={{fontSize:"0.8rem",color:"#6b7280",lineHeight:1}}>→</span>;
-              else if (delta>0)       arrow = <span style={{fontSize:"0.95rem",color:col.text,lineHeight:1,fontWeight:700}}>↑</span>;
-              else                    arrow = <span style={{fontSize:"0.95rem",color:col.text,lineHeight:1,fontWeight:700}}>↓</span>;
-            }
-
-            return (
-              <div
-                key={dateStr}
-                className="day-cell"
-                onClick={() => { if (!isFuture && info) setSelected(dateStr===selected?null:dateStr); }}
-                style={{
-                  minHeight:78, padding:"6px 4px",
-                  borderRight:"1px solid #1e2230", borderBottom:"1px solid #1e2230",
-                  cursor:isFuture||!info?"default":"pointer",
-                  display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", gap:2,
-                  opacity:isFuture?0.3:1,
-                  background:info?col.bg:"transparent",
-                  outline:isSel?`2px solid ${col.border}`:"none",
-                  outlineOffset:-2,
-                  transition:"background 0.12s",
-                }}
-              >
-                <div style={{fontSize:"0.78rem",fontWeight:700,fontFamily:"monospace",color:info?col.text:"#9ca3af"}}>{day}</div>
-                {loading&&!info&&<div style={{width:10,height:10,border:"2px solid #1e2230",borderTopColor:"#a855f7",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
-                {arrow}
-                {info?.composite!=null && <div style={{fontSize:"0.58rem",fontFamily:"monospace",color:col.text}}>{info.composite}/100</div>}
-                {!info&&!loading&&!isFuture&&<div style={{fontSize:"0.52rem",color:"#4b5563",fontFamily:"monospace"}}>no data</div>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* DETAIL POPUP */}
-      {selected && selInfo && (() => {
-        const d = new Date(selected+"T12:00:00");
-        const label = d.toLocaleDateString("en-CA",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-        const st = selInfo.status;
-        const col = C[st];
-        const badgeText = st==="perfect"?"🟣 In Target Range":st==="high"?"⬆ Dial Too High":"⬇ Dial Too Low";
-        const deltaStr = selInfo.delta==null ? "first day" : selInfo.delta===0 ? "no change" : `${selInfo.delta>0?"+":""}${selInfo.delta} pts vs yesterday`;
-
-        return (
-          <div style={{background:"#13161e",border:`1px solid ${col.border}`,borderRadius:12,padding:18,marginBottom:16}}>
-
-            {/* Popup header */}
-            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:14}}>
-              <div>
-                <div style={{fontSize:"1rem",fontWeight:800,marginBottom:3}}>{label}</div>
-                <div style={{fontSize:"0.7rem",color:"#6b7280"}}>Click a different day to switch · same day to close</div>
-              </div>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}>
-                <span style={{background:col.bg,color:col.text,border:`1px solid ${col.border}`,padding:"4px 12px",borderRadius:20,fontSize:"0.78rem",fontWeight:700}}>{badgeText}</span>
-                <span style={{fontFamily:"monospace",fontSize:"1.4rem",fontWeight:900,color:col.text,lineHeight:1}}>
-                  {selInfo.composite??"-"}<span style={{fontSize:"0.8rem",fontWeight:400}}>/100</span>
-                  <span style={{fontSize:"0.65rem",color:"#6b7280",marginLeft:8,fontWeight:400}}>{deltaStr}</span>
-                </span>
-              </div>
+          {/* Calendar */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
+            {/* Nav */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <button onClick={goPrev} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"monospace",fontSize:"0.74rem"}}>← Prev</button>
+              <span style={{fontSize:"1rem",fontWeight:700}}>{MONTH_NAMES[month]} {year}</span>
+              <button onClick={goNext} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"monospace",fontSize:"0.74rem"}}>Next →</button>
             </div>
+            {/* Grid */}
+            <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,overflow:"hidden",flex:1,display:"flex",flexDirection:"column"}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid #1e2230",flexShrink:0}}>
+                {DAY_NAMES.map(d => (
+                  <div key={d} style={{padding:"7px 0",textAlign:"center",fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em"}}>{d}</div>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",flex:1}}>
+                {Array.from({length:firstDay}).map((_,i) => (
+                  <div key={`e${i}`} style={{minHeight:"auto",borderRight:"1px solid #1e2230",borderBottom:"1px solid #1e2230",background:"rgba(0,0,0,0.1)"}}/>
+                ))}
+                {Array.from({length:daysInMo}).map((_,i) => {
+                  const day = i+1;
+                  const pad = n => String(n).padStart(2,"0");
+                  const dateStr = `${year}-${pad(month+1)}-${pad(day)}`;
+                  const isFuture = new Date(year, month, day) > today;
+                  const info = !isFuture ? getInfo(dateStr) : null;
+                  const isSel = selected===dateStr;
+                  const st = info?.status ?? "unknown";
+                  const col = C[st];
+                  const delta = info?.delta ?? null;
 
-            {/* Plain-English summary */}
-            <div style={{background:col.bg,borderLeft:`3px solid ${col.border}`,padding:"10px 14px",borderRadius:"0 8px 8px 0",marginBottom:16,fontSize:"0.82rem",lineHeight:1.7,color:"#d1d5db"}}>
-              {buildNarrative(selInfo)}
-            </div>
+                  let arrow = null;
+                  if (info) {
+                    if (delta==null)        arrow = <span style={{fontSize:"0.7rem",color:"#4b5563",lineHeight:1}}>–</span>;
+                    else if (Math.abs(delta)<=1) arrow = <span style={{fontSize:"0.75rem",color:"#6b7280",lineHeight:1}}>→</span>;
+                    else if (delta>0)       arrow = <span style={{fontSize:"0.9rem",color:col.text,lineHeight:1,fontWeight:700}}>↑</span>;
+                    else                    arrow = <span style={{fontSize:"0.9rem",color:col.text,lineHeight:1,fontWeight:700}}>↓</span>;
+                  }
 
-            {/* What went into the score */}
-            <div style={{fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>
-              What went into the score — each atmospheric layer explained
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:9}}>
-              {Object.entries(TARGETS).map(([k,t]) => {
-                const val = selInfo.raw?.[k];
-                const prevVal = selInfo.prevRaw?.[k];
-                const score = selInfo.scores?.[k];
-                const zone = metricZone(k, val);
-                const mc = C[zone==="ok"||zone==="perfect"?"perfect":zone];
-                const pct = score!=null ? Math.min(100,Math.max(0,Math.round(score))) : 0;
-
-                return (
-                  <div key={k} style={{background:"rgba(255,255,255,0.025)",borderRadius:8,padding:"10px 12px",border:"1px solid #1e2230"}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5,flexWrap:"wrap",gap:6}}>
-                      <div>
-                        <span style={{fontWeight:700,fontSize:"0.8rem",color:"#e4e8f0"}}>{t.label}</span>
-                        <span style={{fontSize:"0.68rem",color:"#6b7280",marginLeft:8}}>{t.desc}</span>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"1rem",color:mc.text}}>
-                          {val!=null?val.toFixed(k==="geo300"?0:1):"N/A"} <span style={{fontSize:"0.7rem",fontWeight:400}}>{t.unit}</span>
-                        </span>
-                        {score!=null&&(
-                          <span style={{background:mc.bg,color:mc.text,border:`1px solid ${mc.border}`,padding:"2px 7px",borderRadius:10,fontSize:"0.68rem",fontFamily:"monospace"}}>
-                            {pct}/100
-                          </span>
-                        )}
-                      </div>
+                  return (
+                    <div
+                      key={dateStr}
+                      className="day-cell"
+                      onClick={() => { if (!isFuture && info) setSelected(dateStr===selected?null:dateStr); }}
+                      style={{
+                        padding:"5px 3px",
+                        borderRight:"1px solid #1e2230", borderBottom:"1px solid #1e2230",
+                        cursor:isFuture||!info?"default":"pointer",
+                        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", gap:1,
+                        opacity:isFuture?0.3:1,
+                        background:info?col.bg:"transparent",
+                        outline:isSel?`2px solid ${col.border}`:"none",
+                        outlineOffset:-2,
+                        transition:"background 0.12s",
+                      }}
+                    >
+                      <div style={{fontSize:"0.72rem",fontWeight:700,fontFamily:"monospace",color:info?col.text:"#9ca3af"}}>{day}</div>
+                      {loading&&!info&&<div style={{width:8,height:8,border:"1.5px solid #1e2230",borderTopColor:"#a855f7",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
+                      {arrow}
+                      {info?.composite!=null && <div style={{fontSize:"0.52rem",fontFamily:"monospace",color:col.text,textAlign:"center"}}>{info.composite}</div>}
+                      {!info&&!loading&&!isFuture&&<div style={{fontSize:"0.48rem",color:"#4b5563",fontFamily:"monospace"}}>—</div>}
                     </div>
-                    {/* Progress bar: shows where value sits between 0 and max */}
-                    <div style={{height:3,background:"#1e2230",borderRadius:2,marginBottom:8,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${pct}%`,background:mc.text,borderRadius:2,transition:"width 0.5s"}}/>
-                    </div>
-                    {/* Human-readable explanation */}
-                    <div style={{fontSize:"0.74rem",color:"#9ca3af",lineHeight:1.6}}>
-                      {explainMetric(k, val, prevVal)}
-                    </div>
-                    {/* Target reminder */}
-                    <div style={{fontSize:"0.62rem",color:"#4b5563",fontFamily:"monospace",marginTop:6}}>
-                      Target: {t.min}–{t.max} {t.unit} · Ideal: {t.ideal} {t.unit}
-                      {zone==="low"?" ← below target":zone==="high"?" ← above target":" ✓ in range"}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+
+        {/* RIGHT COLUMN: Data Sources + Detail Panel */}
+        <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:"600px"}}>
+
+          {/* Data Sources */}
+          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"11px 14px",display:"flex",flexDirection:"column",flexShrink:0}}>
+            <div style={{fontSize:"0.6rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:9,flexShrink:0}}>
+              Data Sources · Open-Meteo (Free · No API Key)
+            </div>
+            <div className="src-scroll" style={{overflowY:"auto",flex:1,maxHeight:100,paddingRight:3}}>
+              {[...Object.entries(TARGETS),
+                ["score", {label:"Composite Score",unit:"0–100",desc:"Average of all 5 metrics",min:"55–75",ideal:"purple",max:">75 red / <55 blue"}]
+              ].map(([k,t]) => (
+                <div key={k} style={{display:"flex",gap:8,marginBottom:6,alignItems:"flex-start"}}>
+                  <div style={{width:2,background:"#a855f7",borderRadius:1,alignSelf:"stretch",flexShrink:0}}/>
+                  <div>
+                    <span style={{fontSize:"0.71rem",fontWeight:700,color:"#d1d5db"}}>{t.label}</span>
+                    {t.unit && <span style={{fontSize:"0.66rem",color:"#6b7280",marginLeft:5}}>({t.unit})</span>}
+                    <div style={{fontSize:"0.63rem",color:"#6b7280",marginTop:1}}>{t.desc}</div>
+                    {t.min && t.ideal && k!=="score" && (
+                      <div style={{fontSize:"0.6rem",color:"#4b5563",fontFamily:"monospace"}}>Target {t.min}–{t.max} · Ideal {t.ideal}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Daily Detail / Summary Panel */}
+          {selected && selInfo ? (() => {
+            const d = new Date(selected+"T12:00:00");
+            const label = d.toLocaleDateString("en-CA",{weekday:"short",month:"short",day:"numeric"});
+            const st = selInfo.status;
+            const col = C[st];
+            const deltaStr = selInfo.delta==null ? "first" : selInfo.delta===0 ? "→" : `${selInfo.delta>0?"+":""}${selInfo.delta}`;
+            const badgeText = st==="perfect"?"🟣 Target":st==="high"?"⬆ Too High":"⬇ Too Low";
+
+            return (
+              <div style={{background:"#13161e",border:`1px solid ${col.border}`,borderRadius:10,padding:"11px 14px",flex:1,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+                {/* Header */}
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:6,marginBottom:10,flexShrink:0}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:"0.92rem",fontWeight:800,lineHeight:1.1}}>{label}</div>
+                    <div style={{fontSize:"0.65rem",color:"#6b7280",marginTop:2}}>Click day to switch</div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,flexShrink:0}}>
+                    <span style={{background:col.bg,color:col.text,border:`1px solid ${col.border}`,padding:"3px 10px",borderRadius:16,fontSize:"0.72rem",fontWeight:700,whiteSpace:"nowrap"}}>{badgeText}</span>
+                    <span style={{fontFamily:"monospace",fontSize:"1.3rem",fontWeight:900,color:col.text,lineHeight:1}}>
+                      {selInfo.composite??"-"}<span style={{fontSize:"0.75rem",fontWeight:400}}>/100</span>
+                    </span>
+                    <span style={{fontSize:"0.62rem",color:"#6b7280",fontFamily:"monospace"}}>{deltaStr} vs prev</span>
+                  </div>
+                </div>
+
+                {/* Summary narrative */}
+                <div style={{background:col.bg,borderLeft:`2px solid ${col.border}`,padding:"8px 10px",borderRadius:"0 6px 6px 0",marginBottom:10,fontSize:"0.77rem",lineHeight:1.6,color:"#d1d5db",flexShrink:0}}>
+                  {buildNarrative(selInfo)}
+                </div>
+
+                {/* Metrics breakdown — scrollable if needed */}
+                <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:7,flexShrink:0}}>
+                  Metrics
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:6,overflowY:"auto",flex:1}}>
+                  {Object.entries(TARGETS).map(([k,t]) => {
+                    const val = selInfo.raw?.[k];
+                    const score = selInfo.scores?.[k];
+                    const zone = metricZone(k, val);
+                    const mc = C[zone==="ok"||zone==="perfect"?"perfect":zone];
+                    const pct = score!=null ? Math.min(100,Math.max(0,Math.round(score))) : 0;
+
+                    return (
+                      <div key={k} style={{background:"rgba(255,255,255,0.02)",borderRadius:6,padding:"7px 9px",border:"1px solid #1e2230",flexShrink:0}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,gap:4}}>
+                          <span style={{fontWeight:700,fontSize:"0.72rem",color:"#e4e8f0"}}>{t.label}</span>
+                          <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.85rem",color:mc.text}}>
+                            {val!=null?val.toFixed(k==="geo300"?0:1):"—"} {t.unit}
+                          </span>
+                        </div>
+                        <div style={{height:2,background:"#1e2230",borderRadius:1,marginBottom:5,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${pct}%`,background:mc.text,borderRadius:1}}/>
+                        </div>
+                        <div style={{fontSize:"0.64rem",color:"#9ca3af",lineHeight:1.5,marginBottom:3}}>
+                          {explainMetric(k, val, selInfo.prevRaw?.[k]).slice(0,120)}...
+                        </div>
+                        <div style={{fontSize:"0.6rem",color:"#4b5563",fontFamily:"monospace"}}>
+                          Target {t.min}–{t.max}{zone==="low"?" ↙":zone==="high"?" ↗":" ✓"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })() : (
+            <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"14px",flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#6b7280",fontSize:"0.8rem",textAlign:"center",fontFamily:"monospace"}}>
+              Click a calendar day to see the full breakdown
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
