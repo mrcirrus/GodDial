@@ -49,17 +49,33 @@ function parseHourly(json) {
 function scoreMetric(key, val) {
   if (val == null) return null;
   const t = TARGETS[key];
-  if (key === "geo300" || key === "pressure") {
-    if (val < t.min) return Math.max(0, ((val-(t.min-300))/300)*50);
-    if (val > t.max) return Math.max(0, 100-((val-t.max)/100)*20);
-    return 50+((val-t.min)/(t.max-t.min))*50;
-  } else {
-    if (val < t.min) return Math.max(0, (val/t.min)*55);
-    if (val > t.max) return Math.max(0, 100-((val-t.max)/(t.max*0.5))*55);
-    const dist = Math.abs(val-t.ideal);
-    const range = Math.max(t.ideal-t.min, t.max-t.ideal);
-    return 55+(1-dist/range)*45;
+  
+  // Geopotential: INVERSE scoring — higher height = lower flow (bad ridge)
+  // Sweet spot is LOWER values (troughs/active patterns), NOT higher values
+  if (key === "geo300") {
+    // Below min (9200): too low/too deep trough, but still acceptable
+    if (val < t.min) return Math.max(0, 100 - ((t.min - val) / 300) * 50);
+    // Above max (9500): too high/strong ridge = stagnation
+    if (val > t.max) return Math.max(0, 100 - ((val - t.max) / 200) * 45);
+    // In range: lower values better. Ideal is 9390 but score peaks there
+    const distFromIdeal = Math.abs(val - t.ideal);
+    const range = Math.max(t.ideal - t.min, t.max - t.ideal);
+    return 55 + (1 - distFromIdeal / range) * 45;
   }
+  
+  // Pressure: higher is better (high pressure = settled/productive)
+  if (key === "pressure") {
+    if (val < t.min) return Math.max(0, ((val - (t.min - 100)) / 100) * 50);
+    if (val > t.max) return Math.max(0, 100 - ((val - t.max) / 50) * 15);
+    return 50 + ((val - t.min) / (t.max - t.min)) * 50;
+  }
+  
+  // Wind speeds: sweet spot at ideal value, both too high and too low are bad
+  if (val < t.min) return Math.max(0, (val / t.min) * 55);
+  if (val > t.max) return Math.max(0, 100 - ((val - t.max) / (t.max * 0.5)) * 55);
+  const dist = Math.abs(val - t.ideal);
+  const range = Math.max(t.ideal - t.min, t.max - t.ideal);
+  return 55 + (1 - dist / range) * 45;
 }
 
 function calcDay(raw) {
@@ -381,8 +397,11 @@ export default function App() {
                   {buildNarrative(selInfo)}
                 </div>
 
+                <div style={{fontSize:"0.5rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4,flexShrink:0}}>
+                  Composite: ({selInfo.scores?.wind300?.toFixed(0) || "—"} + {selInfo.scores?.wind500?.toFixed(0) || "—"} + {selInfo.scores?.geo300?.toFixed(0) || "—"} + {selInfo.scores?.pressure?.toFixed(0) || "—"}) ÷ 4 = <span style={{color:col.text,fontWeight:900}}>{selInfo.composite}/100</span>
+                </div>
                 <div style={{fontSize:"0.5rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5,flexShrink:0}}>
-                  Metrics
+                  Individual Scores
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:4,overflowY:"auto",flex:1}}>
                   {Object.entries(TARGETS).map(([k,t]) => {
@@ -395,8 +414,13 @@ export default function App() {
                     return (
                       <div key={k} style={{background:"rgba(255,255,255,0.015)",borderRadius:5,padding:"6px 8px",border:"1px solid #1e2230",flexShrink:0}}>
                         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,gap:3}}>
-                          <span style={{fontWeight:700,fontSize:"0.65rem",color:"#e4e8f0"}}>{t.label}</span>
-                          <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.78rem",color:mc.text}}>
+                          <div style={{flex:1}}>
+                            <span style={{fontWeight:700,fontSize:"0.65rem",color:"#e4e8f0"}}>{t.label}</span>
+                            <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.8rem",color:mc.text,marginLeft:8}}>
+                              Score: {score!=null ? Math.round(score) : "—"}/100
+                            </span>
+                          </div>
+                          <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.75rem",color:mc.text,whiteSpace:"nowrap"}}>
                             {val!=null?val.toFixed(k==="geo300"?0:1):"—"} {t.unit}
                           </span>
                         </div>
