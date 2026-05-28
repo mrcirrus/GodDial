@@ -1,458 +1,622 @@
 import { useState, useEffect, useCallback } from "react";
 
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const LAT = 43.7, LON = -79.42;
 
 const TARGETS = {
-  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Wind",     unit: "km/h", key: "wind_speed_300hPa",          desc: "Steering-level wind speed (daily average)" },
-  wind500:  { min: 55,  ideal: 95,  max: 140, label: "500 hPa Wind",     unit: "km/h", key: "wind_speed_500hPa",          desc: "Mid-level wind speed (daily average)" },
-  geo300:   { min: 9200, ideal: 9390, max: 9500, label: "300 hPa Height", unit: "m",   key: "geopotential_height_300hPa", desc: "Trough/ridge indicator (daily average)" },
-  pressure: { min: 1008, ideal: 1016, max: 1030, label: "Sea Level P",   unit: "hPa",  key: "pressure_msl",               desc: "Surface pressure (daily average)" },
+  wind200:  { min: 130, ideal: 160, max: 210, label: "200 hPa Jet (km/h)",      unit: "km/h", key: "wind_speed_200hPa" },
+  wind300:  { min: 130, ideal: 145, max: 185, label: "300 hPa Jet (km/h)",      unit: "km/h", key: "wind_speed_300hPa" },
+  geo300:   { min: 9200, ideal: 9390, max: 9500, label: "300 hPa GeoHeight (m)", unit: "m",    key: "geopotential_height_300hPa" },
+  wind500:  { min: 55,  ideal: 95,  max: 140,  label: "500 hPa Wind (km/h)",    unit: "km/h", key: "wind_speed_500hPa" },
+  pressure: { min: 1008, ideal: 1016, max: 1025, label: "Sea Level P (hPa)",    unit: "hPa",  key: "surface_pressure" },
 };
 
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTH_NAMES = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+];
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
+// ─── API ─────────────────────────────────────────────────────────────────────
 async function fetchMonthData(year, month) {
-  const pad = n => String(n).padStart(2, "0");
-  const start = `${year}-${pad(month+1)}-01`;
-  const lastDay = new Date(year, month+1, 0).getDate();
-  const end = `${year}-${pad(month+1)}-${pad(lastDay)}`;
-  const pvars = ["wind_speed_300hPa","wind_speed_500hPa","geopotential_height_300hPa"].join(",");
-  const url = `https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&start_date=${start}&end_date=${end}&hourly=${pvars},pressure_msl&wind_speed_unit=kmh&timezone=America%2FToronto`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).slice(0,200)}`);
-  return parseHourly(await res.json());
+  const pad = n => String(n).padStart(2, "0");
+  const start = `${year}-${pad(month + 1)}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const end = `${year}-${pad(month + 1)}-${pad(lastDay)}`;
+  const vars = Object.values(TARGETS).map(t => t.key).join(",");
+
+  const url =
+    `https://historical-forecast-api.open-meteo.com/v1/forecast` +
+    `?latitude=${LAT}&longitude=${LON}` +
+    `&start_date=${start}&end_date=${end}` +
+    `&hourly=${vars}` +
+    `&wind_speed_unit=kmh&timezone=America%2FToronto`;
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`API ${res.status}: ${txt.slice(0, 120)}`);
+  }
+  const json = await res.json();
+  return parseHourly(json);
 }
 
 function parseHourly(json) {
-  const h = json.hourly;
-  if (!h || !h.time) throw new Error("Unexpected API response");
-  const byDate = {};
-  h.time.forEach((t, i) => {
-    const date = t.split("T")[0];
-    if (!byDate[date]) byDate[date] = { wind300:[], wind500:[], geo300:[], pressure:[] };
-    const d = byDate[date];
-    const push = (arr, val) => { if (val != null && !isNaN(val)) arr.push(val); };
-    push(d.wind300,  h["wind_speed_300hPa"]?.[i]);
-    push(d.wind500,  h["wind_speed_500hPa"]?.[i]);
-    push(d.geo300,   h["geopotential_height_300hPa"]?.[i]);
-    push(d.pressure, h["pressure_msl"]?.[i]);
-  });
-  const result = {};
-  Object.entries(byDate).forEach(([date, arrs]) => {
-    const avg = a => a.length ? a.reduce((x,y) => x+y,0)/a.length : null;
-    result[date] = { wind300:avg(arrs.wind300), wind500:avg(arrs.wind500), geo300:avg(arrs.geo300), pressure:avg(arrs.pressure) };
-  });
-  return result;
+  const h = json.hourly;
+  const byDate = {};
+
+  h.time.forEach((t, i) => {
+    const date = t.split("T")[0];
+    if (!byDate[date]) {
+      byDate[date] = { wind200: [], wind300: [], geo300: [], wind500: [], pressure: [] };
+    }
+    const d = byDate[date];
+    const push = (arr, val) => { if (val != null && !isNaN(val)) arr.push(val); };
+    push(d.wind200,  h.wind_speed_200hPa?.[i]);
+    push(d.wind300,  h.wind_speed_300hPa?.[i]);
+    push(d.geo300,   h.geopotential_height_300hPa?.[i]);
+    push(d.wind500,  h.wind_speed_500hPa?.[i]);
+    push(d.pressure, h.surface_pressure?.[i]);
+  });
+
+  const result = {};
+  Object.entries(byDate).forEach(([date, arrs]) => {
+    const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+    const max = a => a.length ? Math.max(...a) : null;
+    result[date] = {
+      wind200:  max(arrs.wind200),
+      wind300:  max(arrs.wind300),
+      geo300:   avg(arrs.geo300),
+      wind500:  max(arrs.wind500),
+      pressure: avg(arrs.pressure),
+    };
+  });
+  return result;
 }
 
+// ─── SCORING ─────────────────────────────────────────────────────────────────
+// Pneumatics model:
+//   > 75  = RED   = TOO HIGH = pipe pinched/kinked (jet over-amplified OR arctic high clamping)
+//   55–75 = PURPLE = OPTIMAL = pipe at working pressure (clean steering flow)
+//   < 55  = BLUE  = TOO LOW  = pipe has no pressure (jet collapsed, systems drift/stall)
 function scoreMetric(key, val) {
-  if (val == null) return null;
-  const t = TARGETS[key];
-  
-  // Geopotential: INVERSE scoring — higher height = lower flow (bad ridge)
-  // Sweet spot is LOWER values (troughs/active patterns), NOT higher values
-  if (key === "geo300") {
-    // Below min (9200): too low/too deep trough, but still acceptable
-    if (val < t.min) return Math.max(0, 100 - ((t.min - val) / 300) * 50);
-    // Above max (9500): too high/strong ridge = stagnation
-    if (val > t.max) return Math.max(0, 100 - ((val - t.max) / 200) * 45);
-    // In range: lower values better. Ideal is 9390 but score peaks there
-    const distFromIdeal = Math.abs(val - t.ideal);
-    const range = Math.max(t.ideal - t.min, t.max - t.ideal);
-    return 55 + (1 - distFromIdeal / range) * 45;
-  }
-  
-  // Pressure: higher is better (high pressure = settled/productive)
-  if (key === "pressure") {
-    if (val < t.min) return Math.max(0, ((val - (t.min - 100)) / 100) * 50);
-    if (val > t.max) return Math.max(0, 100 - ((val - t.max) / 50) * 15);
-    return 50 + ((val - t.min) / (t.max - t.min)) * 50;
-  }
-  
-  // Wind speeds: sweet spot at ideal value, both too high and too low are bad
-  if (val < t.min) return Math.max(0, (val / t.min) * 55);
-  if (val > t.max) return Math.max(0, 100 - ((val - t.max) / (t.max * 0.5)) * 55);
-  const dist = Math.abs(val - t.ideal);
-  const range = Math.max(t.ideal - t.min, t.max - t.ideal);
-  return 55 + (1 - dist / range) * 45;
+  if (val == null) return null;
+  const t = TARGETS[key];
+
+  if (key === "geo300" || key === "pressure") {
+    if (val < t.min) return Math.max(0, ((val - (t.min - 300)) / 300) * 50);
+    if (val > t.max) return Math.max(0, 100 - ((val - t.max) / 100) * 20);
+    return 50 + ((val - t.min) / (t.max - t.min)) * 50;
+  } else {
+    if (val < t.min) return Math.max(0, (val / t.min) * 55);
+    if (val > t.max) return Math.max(0, 100 - ((val - t.max) / (t.max * 0.5)) * 55);
+    const distFromIdeal = Math.abs(val - t.ideal);
+    const range = Math.max(t.ideal - t.min, t.max - t.ideal);
+    return 55 + (1 - distFromIdeal / range) * 45;
+  }
 }
 
 function calcDay(raw) {
-  if (!raw) return null;
-  const scores = {};
-  let total=0, count=0;
-  Object.keys(TARGETS).forEach(k => {
-    const s = scoreMetric(k, raw[k]);
-    scores[k] = s;
-    if (s != null) {
-      // Geopotential is INVERTED in composite: higher geo = bad (negative contribution)
-      const contribution = k === "geo300" ? -s : s;
-      total += contribution;
-      count++;
-    }
-  });
-  // Normalize: 4 metrics, but geo is negative, so we get result in range roughly -100 to 100, then scale
-  // Composite = (S300 + S500 - Sgeo + Spres) / 4
-  const composite = count ? Math.round((total / count) + 50) : null; // +50 to shift range back to 0-100
-  const status = composite==null ? "unknown"
-    : composite>=55 && composite<=75 ? "perfect"
-    : composite>75 ? "high" : "low";
-  return { composite, status, scores, raw };
+  if (!raw) return null;
+  const scores = {};
+  let total = 0, count = 0;
+
+  Object.keys(TARGETS).forEach(k => {
+    const s = scoreMetric(k, raw[k]);
+    scores[k] = s;
+    if (s != null) { total += s; count++; }
+  });
+
+  const composite = count ? Math.round(total / count) : null;
+
+  // Status is ALWAYS driven by composite score bracket — never by delta direction
+  const status = composite == null
+    ? "unknown"
+    : composite >= 55 && composite <= 75 ? "perfect"
+    : composite > 75 ? "high"
+    : "low";
+
+  return { composite, status, scores, raw };
 }
 
-// Colors per status
-const C = {
-  perfect: { text:"#b07af5", bg:"rgba(168,85,247,0.12)", border:"rgba(168,85,247,0.4)" },
-  high:    { text:"#f47070", bg:"rgba(239,68,68,0.11)",  border:"rgba(239,68,68,0.4)" },
-  low:     { text:"#60a5fa", bg:"rgba(59,130,246,0.11)", border:"rgba(59,130,246,0.4)" },
-  unknown: { text:"#9ca3af", bg:"transparent", border:"transparent" },
+// ─── SUMMARY TEXT ────────────────────────────────────────────────────────────
+function buildSummary(status, raw, composite) {
+  const w2 = raw?.wind200?.toFixed(0);
+  const w3 = raw?.wind300?.toFixed(0);
+  const g3 = raw?.geo300?.toFixed(0);
+  const pr = raw?.pressure?.toFixed(1);
+  const w5 = raw?.wind500?.toFixed(0);
+
+  if (status === "perfect") {
+    return `Score ${composite}/100 — Dial in optimal range. The atmospheric pipe is at working pressure: `
+      + `300 hPa jet at ${w3} km/h (target 130–185), 200 hPa at ${w2} km/h, geopotential ${g3} m near `
+      + `the 9350–9450 m Toronto normal, surface pressure ${pr} hPa. Flow is steering systems eastward `
+      + `efficiently without kinking. God would leave the dial exactly here.`;
+  }
+
+  if (status === "high") {
+    const reasons = [];
+    if (raw?.wind200 > 210)   reasons.push(`200 hPa jet (${w2} km/h) is above the 210 km/h ceiling — pipe over-pressured`);
+    if (raw?.wind300 > 185)   reasons.push(`300 hPa jet (${w3} km/h) is kinked past the 185 km/h target`);
+    if (raw?.geo300 < 9200)   reasons.push(`geopotential (${g3} m) far below 9350 m normal — deep cold trough pinching flow`);
+    if (raw?.pressure < 1008) reasons.push(`surface pressure (${pr} hPa) shows active cyclone compressing the column`);
+    if (raw?.pressure > 1025) reasons.push(`arctic high (${pr} hPa) acting as clamp north of Toronto, squeezing jet southward`);
+    if (reasons.length === 0) reasons.push(`composite ${composite}/100 indicates pipe is over-pressured across multiple metrics`);
+    return `Score ${composite}/100 — Dial TOO HIGH. Like a kinked hose: ${reasons.join("; ")}. `
+      + `Both over-amplified jet streaks AND polar highs clamping from the north cause this state — `
+      + `the result is chaotic stagnation, not clean flow. God would ease pressure and flatten the wave.`;
+  }
+
+  // low
+  const reasons = [];
+  if (raw?.wind200 < 130) reasons.push(`200 hPa jet (${w2} km/h) below 130 km/h minimum — no productive jet overhead`);
+  if (raw?.wind300 < 130) reasons.push(`300 hPa jet (${w3} km/h) collapsed below 130 km/h steering threshold`);
+  if (raw?.wind500 < 55)  reasons.push(`500 hPa winds (${w5} km/h) too weak to steer systems eastward`);
+  if (raw?.geo300 > 9500) reasons.push(`geopotential (${g3} m) elevated — stagnant ridge, no active jet to drive it`);
+  if (raw?.pressure > 1025) reasons.push(`blocking high (${pr} hPa) with no sweep-through flow`);
+  if (reasons.length === 0) reasons.push(`composite ${composite}/100 shows pipe lacks driving pressure across multiple metrics`);
+  return `Score ${composite}/100 — Dial TOO LOW. Like a hose with no water pressure: ${reasons.join("; ")}. `
+    + `Systems drift and stall rather than tracking east. Cold or damp air lingers over Toronto `
+    + `with no jet to flush it out. God would turn the speed dial up to 140–160 km/h to restore clean steering flow.`;
+}
+
+// ─── STYLES ──────────────────────────────────────────────────────────────────
+const S = {
+  app: {
+    background: "#0d0f14", minHeight: "100vh", color: "#e4e8f0",
+    fontFamily: "'Segoe UI', system-ui, sans-serif",
+    padding: "20px 16px", maxWidth: 900, margin: "0 auto",
+  },
+  header: { textAlign: "center", marginBottom: 28 },
+  h1: {
+    fontSize: "clamp(1.5rem, 4vw, 2.2rem)", fontWeight: 900, letterSpacing: "-0.03em",
+    background: "linear-gradient(135deg, #fff 30%, #a855f7)",
+    WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+    backgroundClip: "text", margin: 0,
+  },
+  sub: { color: "#6b7280", fontSize: "0.82rem", marginTop: 6, fontFamily: "monospace" },
+
+  statusBar: {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    gap: 8, marginBottom: 18, fontFamily: "monospace", fontSize: "0.75rem", color: "#6b7280",
+  },
+  dot: color => ({
+    width: 8, height: 8, borderRadius: "50%", background: color,
+    boxShadow: `0 0 6px ${color}`, flexShrink: 0,
+  }),
+
+  legend: {
+    background: "#13161e", border: "1px solid #1e2230", borderRadius: 10,
+    padding: "14px 18px", marginBottom: 16,
+    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12,
+  },
+  legendTitle: {
+    gridColumn: "1/-1", fontSize: "0.65rem", fontFamily: "monospace",
+    color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4,
+  },
+  legendItem: { display: "flex", alignItems: "flex-start", gap: 9 },
+  legendDot: c => ({ width: 10, height: 10, borderRadius: 3, background: c, flexShrink: 0, marginTop: 3 }),
+
+  metricsBox: {
+    background: "#13161e", border: "1px solid #1e2230", borderRadius: 10,
+    padding: "14px 18px", marginBottom: 16,
+  },
+  metricsTitle: {
+    fontSize: "0.65rem", fontFamily: "monospace", color: "#6b7280",
+    textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10,
+  },
+  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 },
+  metricItem: {
+    background: "rgba(168,85,247,0.07)", borderRadius: 6, padding: "8px 11px",
+    borderLeft: "3px solid #a855f7", fontSize: "0.74rem",
+  },
+  metricItemLabel: { fontWeight: 700, marginBottom: 2 },
+  metricItemDesc: { color: "#6b7280", fontFamily: "monospace", fontSize: "0.68rem", lineHeight: 1.4 },
+
+  calNav: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  navBtn: disabled => ({
+    background: "#13161e", border: "1px solid #1e2230",
+    color: disabled ? "#374151" : "#e4e8f0",
+    padding: "7px 16px", borderRadius: 6,
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "monospace", fontSize: "0.78rem",
+    opacity: disabled ? 0.4 : 1,
+  }),
+  calTitle: { fontSize: "1.1rem", fontWeight: 700, letterSpacing: "-0.01em" },
+
+  calWrap: {
+    background: "#13161e", border: "1px solid #1e2230",
+    borderRadius: 10, overflow: "hidden", marginBottom: 20,
+  },
+  calHead: {
+    display: "grid", gridTemplateColumns: "repeat(7, 1fr)",
+    background: "rgba(255,255,255,0.03)", borderBottom: "1px solid #1e2230",
+  },
+  calHeadCell: {
+    padding: "9px 0", textAlign: "center", fontSize: "0.68rem",
+    fontFamily: "monospace", color: "#6b7280",
+    textTransform: "uppercase", letterSpacing: "0.06em",
+  },
+  calGrid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)" },
+
+  dayCell: (status, selected, empty, future) => ({
+    minHeight: 78, padding: 8,
+    borderRight: "1px solid #1e2230", borderBottom: "1px solid #1e2230",
+    cursor: empty || future ? "default" : "pointer",
+    display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "flex-start",
+    gap: 3, transition: "background 0.15s",
+    opacity: future ? 0.25 : 1,
+    background: empty        ? "rgba(0,0,0,0.15)"
+      : status === "perfect" ? "rgba(168,85,247,0.12)"
+      : status === "high"    ? "rgba(239,68,68,0.10)"
+      : status === "low"     ? "rgba(59,130,246,0.10)"
+      : "transparent",
+    outline: selected ? "2px solid #a855f7" : "none",
+    outlineOffset: -2,
+  }),
+  dayNum: status => ({
+    fontSize: "0.8rem", fontWeight: 700, fontFamily: "monospace",
+    color: status === "perfect" ? "#a855f7"
+         : status === "high"    ? "#ef4444"
+         : status === "low"     ? "#3b82f6"
+         : "#9ca3af",
+  }),
+  dayArrow: { fontSize: "1.1rem", lineHeight: 1 },
+  dayScore: status => ({
+    fontSize: "0.58rem", fontFamily: "monospace", textAlign: "center",
+    color: status === "perfect" ? "#a855f7"
+         : status === "high"    ? "#ef4444"
+         : status === "low"     ? "#3b82f6"
+         : "#6b7280",
+  }),
+
+  detail: {
+    background: "#13161e", border: "1px solid #1e2230",
+    borderRadius: 10, padding: 20,
+  },
+  detailHeader: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 16, flexWrap: "wrap", gap: 10,
+  },
+  detailDate: { fontSize: "1.05rem", fontWeight: 800, letterSpacing: "-0.02em" },
+  badge: status => ({
+    padding: "5px 14px", borderRadius: 20, fontSize: "0.8rem", fontWeight: 700,
+    background: status === "perfect" ? "rgba(168,85,247,0.15)"
+              : status === "high"    ? "rgba(239,68,68,0.12)"
+              : "rgba(59,130,246,0.12)",
+    color: status === "perfect" ? "#a855f7"
+         : status === "high"    ? "#ef4444"
+         : "#3b82f6",
+    border: `1px solid ${
+      status === "perfect" ? "rgba(168,85,247,0.3)"
+      : status === "high"  ? "rgba(239,68,68,0.3)"
+      : "rgba(59,130,246,0.3)"
+    }`,
+  }),
+
+  deltaRow: {
+    marginBottom: 14, padding: "9px 13px",
+    background: "rgba(255,255,255,0.03)", borderRadius: 8,
+    fontFamily: "monospace", fontSize: "0.75rem", color: "#9ca3af",
+    display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+  },
+
+  metricsCards: {
+    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 10, marginBottom: 16,
+  },
+  mCard: {
+    background: "rgba(255,255,255,0.03)", border: "1px solid #1e2230",
+    borderRadius: 8, padding: 13,
+  },
+  mCardTitle: {
+    fontSize: "0.66rem", fontFamily: "monospace", color: "#6b7280",
+    textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6,
+  },
+  mCardVal: color => ({
+    fontSize: "1.3rem", fontWeight: 900, fontFamily: "monospace",
+    color, marginBottom: 3,
+  }),
+  mCardChange: { fontSize: "0.72rem", fontFamily: "monospace", marginBottom: 4 },
+  mCardTarget: { fontSize: "0.66rem", color: "#6b7280", fontFamily: "monospace" },
+  bar: { height: 4, background: "#1e2230", borderRadius: 2, marginTop: 6, overflow: "hidden" },
+  barFill: (pct, color) => ({
+    height: "100%", width: `${Math.min(100, Math.max(0, pct))}%`,
+    background: color, borderRadius: 2, transition: "width 0.5s",
+  }),
+  summary: {
+    background: "rgba(168,85,247,0.06)", borderRadius: 8, padding: 14,
+    fontSize: "0.82rem", lineHeight: 1.7, borderLeft: "3px solid #a855f7",
+  },
 };
 
-function metricZone(key, val) {
-  if (val==null) return "unknown";
-  const t = TARGETS[key];
-  if (val < t.min) return "low";
-  if (val > t.max) return "high";
-  return "perfect";
-}
-
-function explainMetric(key, val, prevVal) {
-  if (val==null) return "No data available for this layer.";
-  const t = TARGETS[key];
-  const diff = prevVal!=null ? val-prevVal : null;
-  const changeStr = diff==null ? "" : ` (${diff>=0?"+":""}${diff.toFixed(1)} ${t.unit} vs prev day)`;
-  const v = val.toFixed(key==="geo300"?0:1);
-  const zone = metricZone(key, val);
-
-  const copy = {
-    wind200: {
-      low:     `At ${v} km/h, the upper jet stream was too weak. Below 130 km/h means there's no productive flow driving weather systems eastward — air masses stall over Toronto instead of clearing out.`,
-      perfect: `At ${v} km/h, the upper jet stream was in the ideal range. This speed keeps systems moving progressively without over-amplifying the wave pattern into a deep cold trough.`,
-      high:    `At ${v} km/h, the upper jet was over-energized. Above 210 km/h typically signals the Rossby wave pattern has amplified aggressively, which tends to buckle southward into a cold trough over the Great Lakes.`,
-    },
-    wind300: {
-      low:     `At ${v} km/h, the steering-level jet was sluggish. Below 130 km/h means weather systems have no strong current to push them east — they park over Toronto.`,
-      perfect: `At ${v} km/h, the 300 hPa steering jet was healthy. This is the level that drives the speed and trajectory of surface weather systems passing through our region.`,
-      high:    `At ${v} km/h, the 300 hPa jet was running aggressively. Values above 185 km/h here often accompany a deep trough with cold air digging southward.`,
-    },
-    geo300: {
-      low:     `The geopotential height was ${v} m — well below the normal May range of 9350–9450 m. A compressed atmosphere like this means a cold trough was overhead, dragging Arctic air southward into Toronto.`,
-      perfect: `The geopotential height was ${v} m — within the normal May range of 9350–9450 m. This means the air column overhead was neither dominated by a cold trough nor an extreme ridge. Neutral territory.`,
-      high:    `The geopotential height was ${v} m — above the normal May range. A tall air column like this means a warm ridge was building. Can be great for warmth, but if the jet is absent it creates stagnation.`,
-    },
-    wind500: {
-      low:     `Mid-level flow was only ${v} km/h. Below 55 km/h means the middle of the atmosphere is nearly calm — weather systems have no steering current at this level and tend to drift or stall.`,
-      perfect: `Mid-level flow was ${v} km/h — in the ideal range. The 500 hPa level acts as a secondary steering current; this reading suggests progressive, organized flow.`,
-      high:    `Mid-level winds were ${v} km/h. Strong mid-level flow can keep systems moving, but this also signals an energetic, potentially amplified pattern.`,
-    },
-    pressure: {
-      low:     `Sea-level pressure was ${v} hPa — below 1008 hPa. This means an active low pressure system or cyclone was situated over or near Toronto, associated with cloud, wind, and precipitation.`,
-      perfect: `Sea-level pressure was ${v} hPa — in a healthy range. Values between 1008–1030 hPa at the surface support settled or progressively clearing weather conditions.`,
-      high:    `Sea-level pressure was ${v} hPa — notably high. Strong surface high pressure brings clear and stable conditions, but can also trap cold air in place or slow system movement.`,
-    },
-  };
-  return (copy[key]?.[zone] ?? `${v} ${t.unit}`) + (changeStr ? " " + changeStr : "");
-}
-
-function buildNarrative(info) {
-  const { composite, status, raw, scores } = info;
-  if (composite==null) return "Not enough data to score this day.";
-
-  const allKeys = Object.keys(TARGETS);
-  const outOfRange = allKeys.filter(k => {
-    const z = metricZone(k, raw?.[k]);
-    return z !== "perfect" && z !== "unknown";
-  });
-
-  if (status === "perfect") {
-    return `The God Dial was dialled in today. All four atmospheric layers were reading close to their ideal values — the jet stream was driving progressive west-to-east flow at the right speed, the atmosphere wasn't buckled into a cold trough, and surface pressure supported settled conditions. This is exactly where the hypothetical dial should sit.`;
-  }
-  if (status === "high") {
-    const offenders = outOfRange.filter(k => metricZone(k, raw?.[k])==="high").map(k => TARGETS[k].label);
-    return `The dial was running too high — the atmosphere was over-energized today. ${offenders.length ? `The main offenders: ${offenders.join(", ")}. ` : ""}This typically means a Rossby wave had amplified too aggressively, pulling a cold trough southward over the Great Lakes. Too much energy in the system = deep waves = cold air for Toronto.`;
-  }
-  const offenders = outOfRange.filter(k => metricZone(k, raw?.[k])==="low").map(k => TARGETS[k].label);
-  return `The dial was too low — the atmosphere was sluggish and collapsed today. ${offenders.length ? `The weak metrics: ${offenders.join(", ")}. ` : ""}This usually means a stagnant pattern where weather systems sit over Toronto instead of moving through. No jet speed = no steering current = stuck cold or damp conditions.`;
-}
-
+// ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const now = new Date();
-  const [year, setYear]         = useState(now.getFullYear());
-  const [month, setMonth]       = useState(now.getMonth());
-  const [cache, setCache]       = useState({});
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState(null);
-  const [selected, setSelected] = useState(null);
+  const now = new Date();
+  const [year, setYear]         = useState(now.getFullYear());
+  const [month, setMonth]       = useState(now.getMonth());
+  const [cache, setCache]       = useState({});
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState(null);
+  const [selected, setSelected] = useState(null);
 
-  const cacheKey = `${year}-${month}`;
-  const dayData  = cache[cacheKey] || {};
+  const cacheKey = `${year}-${month}`;
+  const dayData  = cache[cacheKey] || {};
 
-  const loadMonth = useCallback(async (y, m) => {
-    const key = `${y}-${m}`;
-    if (cache[key]) return;
-    setLoading(true); setError(null);
-    try {
-      const data = await fetchMonthData(y, m);
-      setCache(prev => ({ ...prev, [key]: data }));
-    } catch(e) { setError(e.message); }
-    finally { setLoading(false); }
-  }, [cache]);
+  const loadMonth = useCallback(async (y, m) => {
+    const key = `${y}-${m}`;
+    if (cache[key]) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchMonthData(y, m);
+      setCache(prev => ({ ...prev, [key]: data }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [cache]);
 
-  useEffect(() => { loadMonth(year, month); }, [year, month]);
+  useEffect(() => { loadMonth(year, month); }, [year, month]);
 
-  const today = new Date(); today.setHours(0,0,0,0);
-  const allDates = Object.keys(dayData).sort();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isAtCurrentMonth = year === today.getFullYear() && month === today.getMonth();
 
-  function goPrev() {
-    setSelected(null);
-    if (month===0) { setYear(y=>y-1); setMonth(11); } else setMonth(m=>m-1);
-  }
-  function goNext() {
-    const nm=month===11?0:month+1, ny=month===11?year+1:year;
-    if (new Date(ny,nm,1)>today) return;
-    setSelected(null); setYear(ny); setMonth(nm);
-  }
+  function goPrev() {
+    setSelected(null);
+    if (month === 0) { setYear(y => y - 1); setMonth(11); }
+    else setMonth(m => m - 1);
+  }
+  function goNext() {
+    if (isAtCurrentMonth) return;
+    const nm = month === 11 ? 0 : month + 1;
+    const ny = month === 11 ? year + 1 : year;
+    if (new Date(ny, nm, 1) > today) return;
+    setSelected(null);
+    setYear(ny); setMonth(nm);
+  }
 
-  function getInfo(dateStr) {
-    const raw = dayData[dateStr];
-    if (!raw) return null;
-    const idx = allDates.indexOf(dateStr);
-    const prevRaw = idx>0 ? dayData[allDates[idx-1]] : null;
-    const cur  = calcDay(raw);
-    const prev = calcDay(prevRaw);
-    const delta = (cur?.composite!=null && prev?.composite!=null) ? cur.composite-prev.composite : null;
-    return { ...cur, delta, prevRaw };
-  }
+  const allDates = Object.keys(dayData).sort();
 
-  const selInfo = selected ? getInfo(selected) : null;
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMo = new Date(year, month+1, 0).getDate();
-  const dotColor = loading?"#fbbf24":error?"#ef4444":"#22c55e";
+  // Status driven purely by composite score bracket — delta is display-only
+  function getInfo(dateStr) {
+    const raw = dayData[dateStr];
+    if (!raw) return null;
+    const idx = allDates.indexOf(dateStr);
+    const prevRaw = idx > 0 ? dayData[allDates[idx - 1]] : null;
+    const cur  = calcDay(raw);
+    const prev = calcDay(prevRaw);
+    const delta = cur?.composite != null && prev?.composite != null
+      ? cur.composite - prev.composite : null;
+    return { ...cur, calStatus: cur?.status, delta, prevRaw };
+  }
 
-  return (
-    <div style={{background:"#0d0f14",minHeight:"100vh",color:"#e4e8f0",fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px 16px"}}>
-      <style>{`
-        @keyframes spin{to{transform:rotate(360deg)}}
-        *{box-sizing:border-box;margin:0;padding:0}
-        button:hover{border-color:#a855f7!important}
-        .src-scroll::-webkit-scrollbar{width:3px}
-        .src-scroll::-webkit-scrollbar-thumb{background:#2a2d3a;border-radius:2px}
-        .day-cell:hover{filter:brightness(1.15)}
-      `}</style>
+  const selInfo = selected ? getInfo(selected) : null;
 
-      {/* HEADER */}
-      <div style={{textAlign:"center",marginBottom:12}}>
-        <h1 style={{fontSize:"clamp(1.3rem,3.5vw,1.8rem)",fontWeight:900,letterSpacing:"-0.03em",background:"linear-gradient(135deg,#fff 30%,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",margin:0}}>
-          Toronto God Dial
-        </h1>
-        <p style={{color:"#6b7280",fontSize:"0.75rem",marginTop:3,fontFamily:"monospace"}}>
-          Jet Stream Analysis — Dial Status?
-        </p>
-      </div>
+  function metricColor(key, val) {
+    if (val == null) return "#6b7280";
+    const t = TARGETS[key];
+    return val < t.min ? "#3b82f6" : val > t.max ? "#ef4444" : "#a855f7";
+  }
 
-      {/* STATUS */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:10,fontFamily:"monospace",fontSize:"0.68rem",color:"#6b7280"}}>
-        <div style={{width:6,height:6,borderRadius:"50%",background:dotColor,boxShadow:`0 0 4px ${dotColor}`,flexShrink:0}}/>
-        <span>{loading?"Fetching…":error?`Error: ${error.slice(0,80)}`:"Live · Open-Meteo · Toronto 43.7°N 79.4°W"}</span>
-      </div>
+  function barPct(key, val) {
+    if (val == null) return 0;
+    const t = TARGETS[key];
+    const lo = key === "geo300" ? t.min - 300 : key === "pressure" ? 990 : 0;
+    const hi = key === "geo300" ? t.max + 100 : key === "pressure" ? t.max + 15 : t.max * 1.4;
+    return ((val - lo) / (hi - lo)) * 100;
+  }
 
-      {/* TWO-COLUMN MAIN LAYOUT */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,minHeight:"calc(100vh - 220px)"}}>
+  const dotColor  = loading ? "#fbbf24" : error ? "#ef4444" : "#22c55e";
+  const statusMsg = loading ? "Fetching data from Open-Meteo…"
+    : error ? `Error: ${error.slice(0, 90)}`
+    : "Live · Historical Forecast API · Toronto 43.7°N 79.4°W";
 
-        {/* LEFT COLUMN */}
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMo = new Date(year, month + 1, 0).getDate();
 
-          {/* Color Legend */}
-          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"9px 12px",flexShrink:0}}>
-            <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:7}}>Color Guide</div>
-            {[
-              {dot:"#ef4444",text:"#f47070",label:"Red — Too High",    desc:"Over-amplified. Cold trough digging south."},
-              {dot:"#3b82f6",text:"#60a5fa",label:"Blue — Too Low",    desc:"Collapsed. Systems stalling. No steering."},
-              {dot:"#a855f7",text:"#b07af5",label:"Purple — Target",   desc:"Optimal. 130–185 km/h jet. Geo ≥9350 m."},
-            ].map(({dot,text,label,desc}) => (
-              <div key={label} style={{display:"flex",gap:7,marginBottom:6,alignItems:"flex-start"}}>
-                <div style={{width:7,height:7,borderRadius:2,background:dot,flexShrink:0,marginTop:3}}/>
-                <div>
-                  <div style={{fontSize:"0.7rem",fontWeight:700,color:text,lineHeight:1.15,marginBottom:1}}>{label}</div>
-                  <div style={{fontSize:"0.62rem",color:"#6b7280",lineHeight:1.3}}>{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+  return (
+    <div style={S.app}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0d0f14; }
+      `}</style>
 
-          {/* Calendar */}
-          <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4}}>
-              <button onClick={goPrev} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"5px 10px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:"0.68rem"}}>← Prev</button>
-              <span style={{fontSize:"0.95rem",fontWeight:700}}>{MONTH_NAMES[month]} {year}</span>
-              <button onClick={goNext} style={{background:"#13161e",border:"1px solid #1e2230",color:"#e4e8f0",padding:"5px 10px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:"0.68rem"}}>Next →</button>
-            </div>
-            <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,overflow:"hidden",flex:1,display:"flex",flexDirection:"column"}}>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid #1e2230",flexShrink:0}}>
-                {DAY_NAMES.map(d => (
-                  <div key={d} style={{padding:"5px 0",textAlign:"center",fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.03em"}}>{d}</div>
-                ))}
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",flex:1}}>
-                {Array.from({length:firstDay}).map((_,i) => (
-                  <div key={`e${i}`} style={{minHeight:"auto",borderRight:"1px solid #1e2230",borderBottom:"1px solid #1e2230",background:"rgba(0,0,0,0.1)"}}/>
-                ))}
-                {Array.from({length:daysInMo}).map((_,i) => {
-                  const day = i+1;
-                  const pad = n => String(n).padStart(2,"0");
-                  const dateStr = `${year}-${pad(month+1)}-${pad(day)}`;
-                  const isFuture = new Date(year, month, day) > today;
-                  const info = !isFuture ? getInfo(dateStr) : null;
-                  const isSel = selected===dateStr;
-                  const st = info?.status ?? "unknown";
-                  const col = C[st];
-                  const delta = info?.delta ?? null;
+      {/* HEADER */}
+      <div style={S.header}>
+        <h1 style={S.h1}>Toronto God Dial</h1>
+        <p style={S.sub}>Jet Stream Atmospheric Pressure Analysis · Is the pipe pinched too high or limp too low?</p>
+      </div>
 
-                  let arrow = null;
-                  if (info) {
-                    if (delta==null)        arrow = <span style={{fontSize:"0.65rem",color:"#4b5563",lineHeight:1}}>–</span>;
-                    else if (Math.abs(delta)<=1) arrow = <span style={{fontSize:"0.68rem",color:"#6b7280",lineHeight:1}}>→</span>;
-                    else if (delta>0)       arrow = <span style={{fontSize:"0.85rem",color:col.text,lineHeight:1,fontWeight:700}}>↑</span>;
-                    else                    arrow = <span style={{fontSize:"0.85rem",color:col.text,lineHeight:1,fontWeight:700}}>↓</span>;
-                  }
+      {/* STATUS */}
+      <div style={S.statusBar}>
+        <div style={S.dot(dotColor)} />
+        <span>{statusMsg}</span>
+      </div>
 
-                  return (
-                    <div
-                      key={dateStr}
-                      className="day-cell"
-                      onClick={() => { if (!isFuture && info) setSelected(dateStr===selected?null:dateStr); }}
-                      style={{
-                        padding:"4px 2px",
-                        borderRight:"1px solid #1e2230", borderBottom:"1px solid #1e2230",
-                        cursor:isFuture||!info?"default":"pointer",
-                        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", gap:0.5,
-                        opacity:isFuture?0.3:1,
-                        background:info?col.bg:"transparent",
-                        outline:isSel?`2px solid ${col.border}`:"none",
-                        outlineOffset:-2,
-                        transition:"background 0.12s",
-                        minHeight:"auto",
-                      }}
-                    >
-                      <div style={{fontSize:"0.66rem",fontWeight:700,fontFamily:"monospace",color:info?col.text:"#9ca3af"}}>{day}</div>
-                      {loading&&!info&&<div style={{width:6,height:6,border:"1px solid #1e2230",borderTopColor:"#a855f7",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
-                      {arrow}
-                      {info?.composite!=null && <div style={{fontSize:"0.48rem",fontFamily:"monospace",color:col.text,textAlign:"center"}}>{info.composite}</div>}
-                      {!info&&!loading&&!isFuture&&<div style={{fontSize:"0.44rem",color:"#4b5563",fontFamily:"monospace"}}>—</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* LEGEND */}
+      <div style={S.legend}>
+        <div style={S.legendTitle}>God Dial Reading Guide</div>
+        {[
+          { c: "#ef4444", emoji: "🔴", title: "TOO HIGH — Pipe Pinched",
+            desc: "Jet kinked/over-amplified past 185 km/h, OR arctic high clamping from north. Chaotic stagnation — systems spin instead of tracking east." },
+          { c: "#3b82f6", emoji: "🔵", title: "TOO LOW — No Pipe Pressure",
+            desc: "Jet collapsed below 130 km/h. No driving force. Systems drift and linger. Cold or damp air stagnates over Toronto with nothing to flush it." },
+          { c: "#a855f7", emoji: "🟣", title: "OPTIMAL — Working Pressure",
+            desc: "Jet 130–185 km/h, flat zonal flow, geo ≥9350 m, SLP 1008–1025 hPa. Pipe at working pressure. Clean eastward steering. God holds it here." },
+        ].map(({ c, emoji, title, desc }) => (
+          <div key={title} style={S.legendItem}>
+            <div style={S.legendDot(c)} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.78rem", marginBottom: 3 }}>{emoji} {title}</div>
+              <div style={{ color: "#6b7280", fontSize: "0.7rem", lineHeight: 1.45 }}>{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
-        {/* RIGHT COLUMN */}
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {/* METRICS INFO */}
+      <div style={S.metricsBox}>
+        <div style={S.metricsTitle}>Data Sources — Open-Meteo Historical Forecast API (ERA5 + GFS · Free · No Key)</div>
+        <div style={S.metricsGrid}>
+          {Object.entries(TARGETS).map(([k, t]) => (
+            <div key={k} style={S.metricItem}>
+              <div style={S.metricItemLabel}>{t.label}</div>
+              <div style={S.metricItemDesc}>
+                Target: {t.min}–{t.max} {t.unit} · Ideal: {t.ideal} {t.unit}
+              </div>
+            </div>
+          ))}
+          <div style={S.metricItem}>
+            <div style={S.metricItemLabel}>Composite Score (0–100)</div>
+            <div style={S.metricItemDesc}>
+              Average of 5 metrics. 55–75 = 🟣 optimal · &lt;55 = 🔵 too low · &gt;75 = 🔴 too high
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* Data Sources */}
-          <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:"9px 12px",display:"flex",flexDirection:"column",flexShrink:0}}>
-            <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6,flexShrink:0}}>
-              Data Sources
-            </div>
-            <div className="src-scroll" style={{overflowY:"auto",flex:1,maxHeight:80,paddingRight:2}}>
-              {[...Object.entries(TARGETS),
-                ["score", {label:"Composite Score",unit:"0–100",desc:"Formula: (Score₃₀₀ + Score₅₀₀ − ScoreGeo + ScorePres) ÷ 4. Rising geopotential (ridge) reduces score. Each metric scored 0–100. Purple: 55–75. Blue: <55. Red: >75",min:"55–75",ideal:"purple",max:">75 red / <55 blue"}]
-              ].map(([k,t]) => (
-                <div key={k} style={{display:"flex",gap:6,marginBottom:5,alignItems:"flex-start"}}>
-                  <div style={{width:2,background:"#a855f7",borderRadius:1,alignSelf:"stretch",flexShrink:0}}/>
-                  <div>
-                    <span style={{fontSize:"0.65rem",fontWeight:700,color:"#d1d5db"}}>{t.label}</span>
-                    {t.unit && <span style={{fontSize:"0.6rem",color:"#6b7280",marginLeft:4}}>({t.unit})</span>}
-                    <div style={{fontSize:"0.58rem",color:"#6b7280",marginTop:1,lineHeight:1.3}}>{t.desc}</div>
-                    {t.min && t.ideal && k!=="score" && (
-                      <div style={{fontSize:"0.55rem",color:"#4b5563",fontFamily:"monospace"}}>Target {t.min}–{t.max}</div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* CALENDAR NAV */}
+      <div style={S.calNav}>
+        <button style={S.navBtn(false)} onClick={goPrev}>← Prev</button>
+        <span style={S.calTitle}>{MONTH_NAMES[month]} {year}</span>
+        <button style={S.navBtn(isAtCurrentMonth)} onClick={goNext} disabled={isAtCurrentMonth}>
+          Next →
+        </button>
+      </div>
 
-          {/* Daily Detail / Summary Panel */}
-          {selected && selInfo ? (() => {
-            const d = new Date(selected+"T12:00:00");
-            const label = d.toLocaleDateString("en-CA",{weekday:"short",month:"short",day:"numeric"});
-            const st = selInfo.status;
-            const col = C[st];
-            const deltaStr = selInfo.delta==null ? "first" : selInfo.delta===0 ? "→" : `${selInfo.delta>0?"+":""}${selInfo.delta}`;
-            const badgeText = st==="perfect"?"🟣 Target":st==="high"?"⬆ High":"⬇ Low";
+      {/* CALENDAR GRID */}
+      <div style={S.calWrap}>
+        <div style={S.calHead}>
+          {DAY_NAMES.map(d => <div key={d} style={S.calHeadCell}>{d}</div>)}
+        </div>
+        <div style={S.calGrid}>
+          {Array.from({ length: firstDay }).map((_, i) => (
+            <div key={`e${i}`} style={{
+              ...S.dayCell(null, false, true, false),
+              borderRight: "1px solid #1e2230", borderBottom: "1px solid #1e2230",
+            }} />
+          ))}
+          {Array.from({ length: daysInMo }).map((_, i) => {
+            const day = i + 1;
+            const pad = n => String(n).padStart(2, "0");
+            const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
+            const isFuture = new Date(year, month, day) > today;
+            const info = (!isFuture && !loading) ? getInfo(dateStr) : null;
+            const isSel = selected === dateStr;
+            const arrow = !info ? null
+              : info.calStatus === "perfect" ? "🟣"
+              : info.calStatus === "high"    ? "🔴"
+              : "🔵";
 
-            return (
-              <div style={{background:"#13161e",border:`1px solid ${col.border}`,borderRadius:10,padding:"9px 12px",flex:1,display:"flex",flexDirection:"column",overflowY:"auto"}}>
-                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:4,marginBottom:8,flexShrink:0}}>
-                  <div>
-                    <div style={{fontSize:"0.82rem",fontWeight:800,lineHeight:1}}>{label}</div>
-                    <div style={{fontSize:"0.6rem",color:"#6b7280",marginTop:1}}>Click day to switch</div>
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
-                    <span style={{background:col.bg,color:col.text,border:`1px solid ${col.border}`,padding:"2px 8px",borderRadius:14,fontSize:"0.65rem",fontWeight:700,whiteSpace:"nowrap"}}>{badgeText}</span>
-                    <span style={{fontFamily:"monospace",fontSize:"1.1rem",fontWeight:900,color:col.text,lineHeight:1}}>
-                      {selInfo.composite??"-"}<span style={{fontSize:"0.65rem",fontWeight:400}}>/100</span>
-                    </span>
-                    <span style={{fontSize:"0.55rem",color:"#6b7280",fontFamily:"monospace"}}>{deltaStr} vs prev</span>
-                  </div>
-                </div>
+            return (
+              <div
+                key={dateStr}
+                style={S.dayCell(info?.calStatus, isSel, false, isFuture)}
+                onClick={() => { if (!isFuture && info) setSelected(dateStr === selected ? null : dateStr); }}
+              >
+                <div style={S.dayNum(info?.calStatus ?? "none")}>{day}</div>
+                {loading && !info && (
+                  <div style={{
+                    width: 12, height: 12, border: "2px solid #1e2230",
+                    borderTopColor: "#a855f7", borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }} />
+                )}
+                {info && <div style={S.dayArrow}>{arrow}</div>}
+                {info?.composite != null && (
+                  <div style={S.dayScore(info.calStatus)}>{info.composite}/100</div>
+                )}
+                {!info && !loading && !isFuture && (
+                  <div style={{ fontSize: "0.58rem", color: "#4b5563", fontFamily: "monospace" }}>
+                    no data
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-                <div style={{background:col.bg,borderLeft:`2px solid ${col.border}`,padding:"6px 8px",borderRadius:"0 5px 5px 0",marginBottom:8,fontSize:"0.7rem",lineHeight:1.5,color:"#d1d5db",flexShrink:0}}>
-                  {buildNarrative(selInfo)}
-                </div>
+      {/* DETAIL PANEL */}
+      {selected && selInfo && (() => {
+        const d = new Date(selected + "T12:00:00");
+        const label = d.toLocaleDateString("en-CA", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric",
+        });
+        const status = selInfo.calStatus;
+        const badgeText = status === "perfect" ? "🟣 Dial In Target Range"
+          : status === "high" ? "🔴 Dial TOO HIGH — Pipe Pinched"
+          : "🔵 Dial TOO LOW — No Pipe Pressure";
 
-                <div style={{fontSize:"0.5rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4,flexShrink:0}}>
-                  Composite: ({selInfo.scores?.wind300?.toFixed(0) || "—"} + {selInfo.scores?.wind500?.toFixed(0) || "—"} − {selInfo.scores?.geo300?.toFixed(0) || "—"} + {selInfo.scores?.pressure?.toFixed(0) || "—"}) ÷ 4 = <span style={{color:col.text,fontWeight:900}}>{selInfo.composite}/100</span>
-                </div>
-                <div style={{fontSize:"0.5rem",fontFamily:"monospace",color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5,flexShrink:0}}>
-                  Individual Scores
-                </div>
-                <div style={{display:"flex",flexDirection:"column",gap:4,overflowY:"auto",flex:1}}>
-                  {Object.entries(TARGETS).map(([k,t]) => {
-                    const val = selInfo.raw?.[k];
-                    const score = selInfo.scores?.[k];
-                    const zone = metricZone(k, val);
-                    const mc = C[zone==="ok"||zone==="perfect"?"perfect":zone];
-                    const pct = score!=null ? Math.min(100,Math.max(0,Math.round(score))) : 0;
+        const deltaColor = selInfo.delta == null ? "#6b7280"
+          : selInfo.delta > 2  ? "#ef4444"
+          : selInfo.delta < -2 ? "#3b82f6"
+          : "#9ca3af";
+        const deltaLabel = selInfo.delta == null ? "No previous day to compare"
+          : selInfo.delta > 2  ? `⬆ +${selInfo.delta} pts vs yesterday`
+          : selInfo.delta < -2 ? `⬇ ${selInfo.delta} pts vs yesterday`
+          : `→ ${selInfo.delta > 0 ? "+" : ""}${selInfo.delta} pts vs yesterday (holding)`;
 
-                    return (
-                      <div key={k} style={{background:"rgba(255,255,255,0.015)",borderRadius:5,padding:"6px 8px",border:"1px solid #1e2230",flexShrink:0}}>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,gap:3}}>
-                          <div style={{flex:1}}>
-                            <span style={{fontWeight:700,fontSize:"0.65rem",color:"#e4e8f0"}}>{t.label}</span>
-                            <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.8rem",color:mc.text,marginLeft:8}}>
-                              Score: {score!=null ? Math.round(score) : "—"}/100
-                            </span>
-                          </div>
-                          <span style={{fontFamily:"monospace",fontWeight:900,fontSize:"0.75rem",color:mc.text,whiteSpace:"nowrap"}}>
-                            {val!=null?val.toFixed(k==="geo300"?0:1):"—"} {t.unit}
-                          </span>
-                        </div>
-                        <div style={{height:2,background:"#1e2230",borderRadius:1,marginBottom:3,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${pct}%`,background:mc.text,borderRadius:1}}/>
-                        </div>
-                        <div style={{fontSize:"0.58rem",color:"#9ca3af",lineHeight:1.4,marginBottom:2}}>
-                          {explainMetric(k, val, selInfo.prevRaw?.[k]).slice(0,100)}...
-                        </div>
-                        <div style={{fontSize:"0.54rem",color:"#4b5563",fontFamily:"monospace"}}>
-                          {t.min}–{t.max}{zone==="low"?" ↙":zone==="high"?" ↗":" ✓"}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })() : (
-            <div style={{background:"#13161e",border:"1px solid #1e2230",borderRadius:10,padding:12,flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#6b7280",fontSize:"0.73rem",textAlign:"center",fontFamily:"monospace"}}>
-              Click a day to see breakdown
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+        return (
+          <div style={S.detail}>
+            <div style={S.detailHeader}>
+              <div style={S.detailDate}>{label}</div>
+              <div style={S.badge(status)}>{badgeText}</div>
+            </div>
+
+            <div style={S.deltaRow}>
+              <span style={{ color: "#6b7280" }}>Trend:</span>
+              <span style={{ color: deltaColor, fontWeight: 700 }}>{deltaLabel}</span>
+              <span style={{ marginLeft: "auto", color: "#6b7280" }}>
+                Score: <strong style={{ color: "#e4e8f0" }}>{selInfo.composite}/100</strong>
+              </span>
+            </div>
+
+            <div style={S.metricsCards}>
+              {Object.entries(TARGETS).map(([k, t]) => {
+                const val     = selInfo.raw?.[k];
+                const prevVal = selInfo.prevRaw?.[k];
+                const diff    = val != null && prevVal != null ? val - prevVal : null;
+                const diffStr = diff == null ? "—" : diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+                const diffArrow = diff == null ? "→" : diff > 0.3 ? "↑" : diff < -0.3 ? "↓" : "→";
+                const diffColor = diff == null ? "#6b7280" : diff > 0.3 ? "#ef4444" : diff < -0.3 ? "#3b82f6" : "#6b7280";
+                const color = metricColor(k, val);
+                const score = selInfo.scores?.[k];
+
+                return (
+                  <div key={k} style={S.mCard}>
+                    <div style={S.mCardTitle}>{t.label}</div>
+                    <div style={S.mCardVal(color)}>
+                      {val != null ? val.toFixed(k === "geo300" ? 0 : 1) : "N/A"}
+                      <span style={{ fontSize: "0.75rem", marginLeft: 3 }}>{t.unit}</span>
+                    </div>
+                    <div style={S.mCardChange}>
+                      <span style={{ color: diffColor }}>{diffArrow} {diffStr} {t.unit} vs prev day</span>
+                    </div>
+                    <div style={S.mCardTarget}>
+                      Target: {t.min}–{t.max} {t.unit} · Ideal: {t.ideal}
+                      {score != null && (
+                        <span style={{ marginLeft: 8, color }}>[{score.toFixed(0)}/100]</span>
+                      )}
+                    </div>
+                    <div style={S.bar}>
+                      <div style={S.barFill(barPct(k, val), color)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={S.summary}>
+              {buildSummary(status, selInfo.raw, selInfo.composite)}
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
 }
