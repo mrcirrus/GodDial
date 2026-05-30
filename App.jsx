@@ -58,6 +58,17 @@ const GEO_VARS = [
   "pressure_msl",
 ];
 
+
+// Metric key → location label mapping
+const METRIC_LOCS = {
+  wind200:"Toronto", wind250:"Toronto", wind300:"Toronto", wind500:"Toronto",
+  geo300:"Toronto", geo500:"Toronto", temp850:"Toronto", temp500:"Toronto",
+  dir300:"Toronto", dir200:"Toronto", pressure:"Toronto", thickness:"Toronto",
+  jetRatio:"Toronto", dirDiff:"Toronto",
+  van_wind300:"Vancouver", van_geo500:"Vancouver",
+  win_geo500:"Winnipeg", hud_pressure:"Hudson Bay", hal_geo500:"Halifax"
+};
+
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
@@ -188,7 +199,7 @@ function scoringEngine(d) {
   // Helper: clamp delta to maxMag
   const addDelta = (key, delta, maxMag, label, desc) => {
     const clamped = Math.max(-maxMag, Math.min(maxMag, delta));
-    details[key] = { delta: clamped, label, desc, raw: d[key] };
+    details[key] = { delta: clamped, label, desc, raw: d[key], location: METRIC_LOCS[key] };
     totalDelta += clamped;
   };
 
@@ -581,7 +592,7 @@ export default function App() {
             const info=(!isFuture&&!loading)?getInfo(dateStr):null;
             const status=info?.status;
             const col=sc(status);
-            const trendArrow=info?.delta==null?null:info.delta>2?"⬆️":info.delta<-2?"⬇️":"➡️";
+            const trendArrow=info?.delta==null?null:info.delta>0?"⬆️🔴":info.delta<0?"⬇️🔵":"➡️";
             return(
               <div key={dateStr}
                 onClick={()=>{ if(!isFuture&&info)setModalDay(dateStr===modalDay?null:dateStr); }}
@@ -591,7 +602,7 @@ export default function App() {
                 {loading&&!info&&<div style={{width:8,height:8,border:`1.5px solid ${C.border}`,borderTopColor:C.perfect,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
                 {info&&<div style={{fontSize:"clamp(0.7rem,1.2vw,1rem)",lineHeight:1}}>{status==="perfect"?"🟣":status==="high"?"🔴":"🔵"}</div>}
                 {info?.composite!=null&&<div style={{fontSize:"clamp(0.45rem,0.7vw,0.58rem)",fontFamily:"monospace",color:col,lineHeight:1}}>{info.composite}/100</div>}
-                {trendArrow&&<div style={{fontSize:"clamp(0.45rem,0.7vw,0.6rem)",lineHeight:1}}>{trendArrow}</div>}
+                {trendArrow&&<div style={{fontSize:"clamp(1.2rem,2.5vw,1.8rem)",lineHeight:1,fontWeight:700}}>{trendArrow}</div>}
                 {!info&&!loading&&!isFuture&&<div style={{fontSize:"0.5rem",color:"#374151",fontFamily:"monospace"}}>—</div>}
               </div>
             );
@@ -642,7 +653,8 @@ export default function App() {
                 const bg = isPos?"rgba(239,68,68,0.06)":isNeg?"rgba(59,130,246,0.06)":"rgba(255,255,255,0.02)";
                 return(
                   <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 9px",borderLeft:`3px solid ${col}`}}>
-                    <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{det.label}</div>
+                    <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:1}}>{det.label}</div>
+                    <div style={{fontSize:"0.52rem",fontFamily:"monospace",color:"#8b5cf6",marginBottom:2}}>📍 {det.location}</div>
                     <div style={{fontSize:"1.0rem",fontWeight:900,fontFamily:"monospace",color:col,marginBottom:1}}>
                       {fmtVal(key, det.raw)}<span style={{fontSize:"0.62rem",marginLeft:3}}>{unitLabel(key)}</span>
                     </div>
