@@ -58,18 +58,6 @@ const GEO_VARS = [
   "pressure_msl",
 ];
 
-
-// Metric key → location label mapping
-const METRIC_LOCS = {
-  wind200:"Toronto", wind250:"Toronto", wind300:"Toronto", wind500:"Toronto",
-  geo300:"Toronto", geo500:"Toronto", temp850:"Toronto", temp500:"Toronto",
-  dir300:"Toronto", dir200:"Toronto", pressure:"Toronto", thickness:"Toronto",
-  jetRatio:"Toronto", dirDiff:"Toronto",
-  closedLow:"Toronto", confluence:"Toronto", coldCore:"Toronto",
-  van_wind300:"Vancouver", van_geo500:"Vancouver",
-  win_geo500:"Winnipeg", hud_pressure:"Hudson Bay", hal_geo500:"Halifax"
-};
-
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
@@ -119,13 +107,16 @@ function parseJSON(json, varList) {
 }
 
 async function fetchMonthAll(year, month) {
-  // Parallel fetch: Toronto + 4 geo nodes
+  /
+  // Throttle API calls to avoid 429 errors
+  const delay = (ms) => new Promise(r => setTimeout(r, ms));
+/ Parallel fetch: Toronto + 4 geo nodes
   const [torJson, vanJson, winJson, hudJson, halJson] = await Promise.all([
-    fetchLocation(LOCS.toronto.lat,   LOCS.toronto.lon,   TORONTO_VARS, year, month),
-    fetchLocation(LOCS.vancouver.lat, LOCS.vancouver.lon, GEO_VARS,     year, month),
-    fetchLocation(LOCS.winnipeg.lat,  LOCS.winnipeg.lon,  GEO_VARS,     year, month),
-    fetchLocation(LOCS.hudson.lat,    LOCS.hudson.lon,    GEO_VARS,     year, month),
-    fetchLocation(LOCS.halifax.lat,   LOCS.halifax.lon,   GEO_VARS,     year, month),
+    (async () => { await delay(0); return await fetchLocation(LOCS.toronto.lat, LOCS.toronto.lon, TORONTO_VARS, year, month); })(),
+    (async () => { await delay(150); return await fetchLocation(LOCS.vancouver.lat, LOCS.vancouver.lon, GEO_VARS, year, month); })(),
+    (async () => { await delay(300); return await fetchLocation(LOCS.winnipeg.lat, LOCS.winnipeg.lon, GEO_VARS, year, month); })(),
+    (async () => { await delay(450); return await fetchLocation(LOCS.hudson.lat, LOCS.hudson.lon, GEO_VARS, year, month); })(),
+    (async () => { await delay(600); return await fetchLocation(LOCS.halifax.lat, LOCS.halifax.lon, GEO_VARS, year, month); })(),
   ]);
 
   const tor = parseJSON(torJson, TORONTO_VARS);
@@ -200,7 +191,7 @@ function scoringEngine(d) {
   // Helper: clamp delta to maxMag
   const addDelta = (key, delta, maxMag, label, desc) => {
     const clamped = Math.max(-maxMag, Math.min(maxMag, delta));
-    details[key] = { delta: clamped, label, desc, raw: d[key], location: METRIC_LOCS[key] };
+    details[key] = { delta: clamped, label, desc, raw: d[key] };
     totalDelta += clamped;
   };
 
@@ -280,7 +271,7 @@ function scoringEngine(d) {
     if (v < 0)        delta = +Math.min(8, ((0-v)/6)*8);    // cold airmass = pinch
     else if (v > 12)  delta = -Math.min(8, ((v-12)/5)*6);   // warm stagnant ridge = expansion
     else              delta = -((v-0)/(12-0)-0.5)*3;
-    addDelta("temp850", delta, 10, "850 hPa Temp (1.5km)", `${v.toFixed(1)}°C — May optimal 4–10°C`);
+    addDelta("temp850", delta, 8, "850 hPa Temp (1.5km)", `${v.toFixed(1)}°C — May optimal 4–10°C`);
   }
 
   // 8. 500 hPa Temperature at Toronto (weight 6) — cold core trough detector
@@ -302,7 +293,7 @@ function scoringEngine(d) {
     if (v < 1008)      delta = +Math.min(6, ((1008-v)/8)*6);  // active low = pinch
     else if (v > 1025) delta = +Math.min(6, ((v-1025)/5)*4);  // arctic high = clamp = also pinch
     else               delta = -((v-1008)/(1025-1008)-0.5)*2;
-    addDelta("pressure", delta, 8, "Sea Level Pressure", `${fmtInhg(hpaToInhg(v))} inHg — optimal 29.78–30.27`);
+    addDelta("pressure", delta, 6, "Sea Level Pressure", `${fmtInhg(hpaToInhg(v))} inHg — optimal 29.78–30.27`);
   }
 
   // 10. Atmospheric Thickness 850-500 hPa (weight 6) — warm/cold column
@@ -314,7 +305,7 @@ function scoringEngine(d) {
     if (v < 5400)      delta = +Math.min(6, ((5400-v)/100)*6);
     else if (v > 5720) delta = -Math.min(6, ((v-5720)/100)*5);
     else               delta = -((v-5400)/(5720-5400)-0.5)*2;
-    addDelta("thickness", delta, 8, "Thickness 850–500hPa", `${Math.round(v)} m — warm >5700, cold <5400`);
+    addDelta("thickness", delta, 6, "Thickness 850–500hPa", `${Math.round(v)} m — warm >5700, cold <5400`);
   }
 
   // 11. Jet Coherence Ratio 200÷500 hPa (weight 4) — organized vs diffuse jet
@@ -325,7 +316,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v < 1.5)      delta = +Math.min(4, ((1.5-v)/0.5)*4); // diffuse = disordered = pinch-adjacent
     else if (v > 2.5) delta = -Math.min(4, ((v-2.5)/1.0)*4); // well-organized = expansion
-    addDelta("jetRatio", delta, 6, "Jet Coherence (200÷500)", `${v.toFixed(2)} ratio — optimal >2.5`);
+    addDelta("jetRatio", delta, 4, "Jet Coherence (200÷500)", `${v.toFixed(2)} ratio — optimal >2.5`);
   }
 
   // 12. Wind Direction at 300 hPa (weight 5) — flow quality
@@ -341,7 +332,7 @@ function scoringEngine(d) {
     else if (v >= 310 && v <= 360) delta = +Math.min(5, ((v-310)/50)*5); // NW = pinch
     else if (v >= 0 && v <= 60)    delta = +Math.min(5, 5);    // N/NE = arctic = max pinch
     else if (v >= 160 && v <= 210) delta = -Math.min(3, 3);    // SSW = warm sector
-    addDelta("dir300", delta, 6, "300 hPa Flow Direction", `${Math.round(v)}° — SW(210-270°)=optimal, N/NW=pinch`);
+    addDelta("dir300", delta, 5, "300 hPa Flow Direction", `${Math.round(v)}° — SW(210-270°)=optimal, N/NW=pinch`);
   }
 
   // 13. Direction Consistency 200 vs 300 hPa (weight 3) — coherence check
@@ -352,7 +343,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v > 60)       delta = +Math.min(3, ((v-60)/40)*3);
     else if (v < 20)  delta = -Math.min(3, ((20-v)/20)*3);
-    addDelta("dirDiff", delta, 2, "Dir Coherence (200 vs 300)", `${Math.round(v)}° diff — <20°=coherent, >60°=shear`);
+    addDelta("dirDiff", delta, 3, "Dir Coherence (200 vs 300)", `${Math.round(v)}° diff — <20°=coherent, >60°=shear`);
   }
 
   // ── GEOGRAPHIC NODE METRICS ──────────────────────────────────────────────
@@ -365,7 +356,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v > 200)      delta = +Math.min(4, ((v-200)/30)*4);  // over-pressured upstream
     else if (v < 100) delta = -Math.min(4, ((100-v)/50)*4);  // collapsed upstream
-    addDelta("van_wind300", delta, 5, "Vancouver 300hPa Jet (upstream)", `${v.toFixed(1)} km/h — Pacific jet entry`);
+    addDelta("van_wind300", delta, 4, "Vancouver 300hPa Jet (upstream)", `${v.toFixed(1)} km/h — Pacific jet entry`);
   }
 
   // 15. Vancouver 500 hPa Geo Height — upstream trough/ridge
@@ -375,7 +366,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v < 5500)      delta = +Math.min(5, ((5500-v)/150)*5); // trough approaching
     else if (v > 5760) delta = -Math.min(5, ((v-5760)/100)*4); // ridge upstream = good
-    addDelta("van_geo500", delta, 7, "Vancouver 500hPa Geo (upstream trough)", `${Math.round(v)} m`);
+    addDelta("van_geo500", delta, 5, "Vancouver 500hPa Geo (upstream trough)", `${Math.round(v)} m`);
   }
 
   // 16. Winnipeg 500 hPa Geo — mid-continent trough position
@@ -386,7 +377,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (diff < -80)   delta = +Math.min(5, ((-80-diff)/100)*5); // deep trough west = incoming pinch
     else if (diff > 80) delta = -Math.min(5, ((diff-80)/100)*4); // ridge west = expansion
-    addDelta("win_geo500", delta, 7, "Winnipeg–Toronto Geo Diff (trough position)", `${Math.round(diff)} m diff`);
+    addDelta("win_geo500", delta, 5, "Winnipeg–Toronto Geo Diff (trough position)", `${Math.round(diff)} m diff`);
   }
 
   // 17. Hudson Bay Pressure — arctic high clamp detector
@@ -396,7 +387,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v > 1030)      delta = +Math.min(6, ((v-1030)/6)*6);  // arctic high = clamp = pinch
     else if (v < 1010) delta = -Math.min(3, ((1010-v)/8)*3);  // low pressure north = relief
-    addDelta("hud_pressure", delta, 10, "Hudson Bay Pressure (arctic clamp)", `${fmtInhg(hpaToInhg(v))} inHg at 60°N`);
+    addDelta("hud_pressure", delta, 6, "Hudson Bay Pressure (arctic clamp)", `${fmtInhg(hpaToInhg(v))} inHg at 60°N`);
   }
 
   // 18. Halifax 500 hPa Geo — downstream exit detector
@@ -408,53 +399,6 @@ function scoringEngine(d) {
     if (v < 5500)       delta = +Math.min(4, ((5500-v)/150)*4); // Atlantic cutoff = sustained pinch
     else if (v > 5720)  delta = -Math.min(4, ((v-5720)/100)*3); // exit ridge = systems leaving
     addDelta("hal_geo500", delta, 4, "Halifax 500hPa Geo (downstream exit)", `${Math.round(v)} m`);
-
-  // 19. CLOSED LOW DETECTOR (weight ±12)
-  // Signature: geo500 low + temp500 cold + pressure dropping simultaneously
-  if (d.geo500 != null || d.temp500 != null || d.pressure != null) {
-    let closedLowScore = 0;
-    let activeSignals = 0;
-    if (d.geo500 != null && d.geo500 < 5400) { closedLowScore += 4; activeSignals++; }
-    if (d.temp500 != null && d.temp500 < -22) { closedLowScore += 4; activeSignals++; }
-    if (d.pressure != null && d.pressure < 1010) { closedLowScore += 4; activeSignals++; }
-    const delta = activeSignals > 0 ? closedLowScore - 6 : 0;
-    addDelta("closedLow", delta, 12, "Closed Low Detector (Pinch Signature)", 
-      `Combo: geo${d.geo500 ? Math.round(d.geo500) + "m" : "N/A"}, temp${d.temp500 ? d.temp500.toFixed(1) + "°C" : "N/A"}, pressure${d.pressure ? fmtInhg(hpaToInhg(d.pressure)) + "inHg" : "N/A"} — closed low when all 3 extreme`);
-  }
-
-  // 20. CONFLUENCE INDEX (weight ±8)
-  if (d.geo500 != null || d.temp500 != null) {
-    let delta = 0;
-    if (d.geo500 != null && d.temp500 != null) {
-      if (d.geo500 < 5450 && d.temp500 < -20) delta = +8;
-      else if (d.geo500 > 5700 && d.temp500 > -15) delta = -8;
-      else {
-        const geoFactor = d.geo500 < 5500 ? +4 : d.geo500 > 5700 ? -4 : 0;
-        const tempFactor = d.temp500 < -20 ? +4 : d.temp500 > -14 ? -4 : 0;
-        delta = (geoFactor + tempFactor) / 2;
-      }
-    } else if (d.geo500 != null) {
-      delta = d.geo500 < 5450 ? +4 : d.geo500 > 5700 ? -4 : 0;
-    } else if (d.temp500 != null) {
-      delta = d.temp500 < -20 ? +4 : d.temp500 > -14 ? -4 : 0;
-    }
-    addDelta("confluence", delta, 8, "Confluence Index (Lines Packed)", 
-      `geo500 ${d.geo500 ? Math.round(d.geo500) + "m" : "N/A"}, temp500 ${d.temp500 ? d.temp500.toFixed(1) + "°C" : "N/A"} — tight lines = pinch`);
-  }
-
-  // 21. RELATIVE COLD CORE (weight ±10)
-  if (d.temp500 != null) {
-    const mayNormal = -18;
-    const diff = d.temp500 - mayNormal;
-    let delta = 0;
-    if (diff < -4) delta = +Math.min(10, ((-4-diff)/3)*10);
-    else if (diff > 2) delta = -Math.min(10, ((diff-2)/4)*8);
-    addDelta("coldCore", delta, 10, "Cold Core Relative to Normal (Closed Low)", 
-      `${d.temp500.toFixed(1)}°C vs May normal -18°C (diff ${diff.toFixed(1)}°C) — extreme cold = closed low`);
-  } else {
-    addDelta("coldCore", 0, 10, "Cold Core Relative to Normal (Closed Low)", "N/A");
-  }
-
   }
 
   // ── COMPOSITE ────────────────────────────────────────────────────────────
@@ -548,7 +492,7 @@ export default function App() {
   const modalInfo = modalDay ? getInfo(modalDay) : null;
 
   return (
-    <div style={{background:C.bg,height:"100vh",width:"100vw",color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",display:"flex",flexDirection:"column",overflow:"hidden",padding:"0px 6px",boxSizing:"border-box"}}>
+    <div style={{background:C.bg,height:"100vh",width:"100vw",color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",display:"flex",flexDirection:"column",overflow:"hidden",padding:"6px 10px",boxSizing:"border-box"}}>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         *{box-sizing:border-box;margin:0;padding:0}
@@ -558,7 +502,7 @@ export default function App() {
       `}</style>
 
       {/* HEADER */}
-      <div style={{textAlign:"center",flexShrink:0,paddingBottom:1}}>
+      <div style={{textAlign:"center",flexShrink:0,paddingBottom:1,marginTop:"-12px"}}>
         <h1 style={{fontSize:"clamp(1.1rem,2.5vw,1.7rem)",fontWeight:900,letterSpacing:"-0.03em",background:"linear-gradient(135deg,#fff 30%,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",lineHeight:1.1}}>
           Toronto God Dial
         </h1>
@@ -569,7 +513,7 @@ export default function App() {
       </div>
 
       {/* INFO ROW */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,flexShrink:0,marginBottom:2}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,flexShrink:0,marginBottom:5}}>
         {/* Left: Reading guide */}
         <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 10px",maxHeight:"18vh",overflowY:"auto"}}>
           <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:5}}>God Dial Reading Guide — 18 Metrics, 5 Locations</div>
@@ -618,7 +562,7 @@ export default function App() {
       </div>
 
       {/* CALENDAR NAV */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,marginBottom:2}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,marginBottom:4}}>
         <button onClick={goPrev} style={{background:C.panel,border:`1px solid ${C.border}`,color:C.text,padding:"4px 12px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:"0.7rem"}}>← Prev</button>
         <span style={{fontSize:"0.95rem",fontWeight:700}}>{MONTHS[month]} {year}</span>
         <button onClick={goNext} disabled={isCurrentMonth} style={{background:C.panel,border:`1px solid ${C.border}`,color:isCurrentMonth?"#374151":C.text,padding:"4px 12px",borderRadius:5,cursor:isCurrentMonth?"not-allowed":"pointer",fontFamily:"monospace",fontSize:"0.7rem",opacity:isCurrentMonth?0.4:1}}>Next →</button>
@@ -629,7 +573,7 @@ export default function App() {
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"rgba(255,255,255,0.03)",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
           {DAYS.map(d=><div key={d} style={{padding:"4px 0",textAlign:"center",fontSize:"0.6rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em"}}>{d}</div>)}
         </div>
-        <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(7,1fr)",gridTemplateRows:`repeat(${totalCells/7},1fr)`,flex:1}}>
+        <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(7,1fr)",gridTemplateRows:`repeat(${totalCells/7},1fr)`,minHeight:0}}>
           {Array.from({length:firstDay}).map((_,i)=>(
             <div key={`e${i}`} style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,background:"rgba(0,0,0,0.1)"}}/>
           ))}
@@ -640,17 +584,17 @@ export default function App() {
             const info=(!isFuture&&!loading)?getInfo(dateStr):null;
             const status=info?.status;
             const col=sc(status);
-            const trendArrow=info?.delta==null?null:info.delta>0?"⬆️🔴":info.delta<0?"⬇️🔵":"➡️";
+            const trendArrow=info?.delta==null?null:info.delta>2?"⬆️":info.delta<-2?"⬇️":"➡️";
             return(
               <div key={dateStr}
                 onClick={()=>{ if(!isFuture&&info)setModalDay(dateStr===modalDay?null:dateStr); }}
-                style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,cursor:isFuture||!info?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,opacity:isFuture?0.2:1,background:isFuture?"transparent":status==="perfect"?"rgba(168,85,247,0.4)":status==="high"?"rgba(239,68,68,0.35)":status==="low"?"rgba(59,130,246,0.35)":"transparent",outline:modalDay===dateStr?`2px solid ${C.perfect}`:"none",outlineOffset:-2,overflow:"hidden"}}
+                style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,cursor:isFuture||!info?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,opacity:isFuture?0.2:1,background:isFuture?"transparent":status==="perfect"?"rgba(168,85,247,0.13)":status==="high"?"rgba(239,68,68,0.12)":status==="low"?"rgba(59,130,246,0.12)":"transparent",outline:modalDay===dateStr?`2px solid ${C.perfect}`:"none",outlineOffset:-2,overflow:"hidden"}}
               >
                 <div style={{fontSize:"clamp(0.6rem,1vw,0.8rem)",fontWeight:700,fontFamily:"monospace",color:col,lineHeight:1}}>{day}</div>
                 {loading&&!info&&<div style={{width:8,height:8,border:`1.5px solid ${C.border}`,borderTopColor:C.perfect,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
                 {info&&<div style={{fontSize:"clamp(0.7rem,1.2vw,1rem)",lineHeight:1}}>{status==="perfect"?"🟣":status==="high"?"🔴":"🔵"}</div>}
                 {info?.composite!=null&&<div style={{fontSize:"clamp(0.45rem,0.7vw,0.58rem)",fontFamily:"monospace",color:col,lineHeight:1}}>{info.composite}/100</div>}
-                {trendArrow&&<div style={{fontSize:"clamp(1.2rem,2.5vw,1.8rem)",lineHeight:1,fontWeight:700}}>{trendArrow}</div>}
+                {trendArrow&&<div style={{fontSize:"clamp(0.45rem,0.7vw,0.6rem)",lineHeight:1}}>{trendArrow}</div>}
                 {!info&&!loading&&!isFuture&&<div style={{fontSize:"0.5rem",color:"#374151",fontFamily:"monospace"}}>—</div>}
               </div>
             );
@@ -663,46 +607,67 @@ export default function App() {
 
       {/* MODAL */}
       {modalDay&&modalInfo&&(
-        <div onClick={e=>{if(e.target===e.currentTarget)setModalDay(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:8,backdropFilter:"blur(3px)"}}>
-          <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:10,padding:12,width:"100%",maxWidth:1000,maxHeight:"90vh",display:"flex",gap:12,overflow:"hidden"}}>
+        <div onClick={e=>{if(e.target===e.currentTarget)setModalDay(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:12,backdropFilter:"blur(3px)"}}>
+          <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:10,padding:16,width:"100%",maxWidth:780,maxHeight:"90vh",overflowY:"auto"}}>
 
-            {/* LEFT: Metrics Cards - Scrollable */}
-            <div style={{flex:"0 0 65%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-              <div style={{fontSize:"0.95rem",fontWeight:800,letterSpacing:"-0.02em",marginBottom:8}}>
+            {/* Modal header */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:6}}>
+              <div style={{fontSize:"0.95rem",fontWeight:800,letterSpacing:"-0.02em"}}>
                 {new Date(modalDay+"T12:00:00").toLocaleDateString("en-CA",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}
               </div>
-              
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,padding:"6px 10px",background:"rgba(255,255,255,0.03)",borderRadius:6,fontFamily:"monospace",fontSize:"0.7rem",flexWrap:"wrap"}}>
-                <span style={{color:C.muted}}>Trend:</span>
-                <span style={{fontWeight:700,color:modalInfo.delta==null?C.muted:modalInfo.delta>0?C.high:C.low}}>
-                  {modalInfo.delta==null?"No prior data":modalInfo.delta>0?`⬆️🔴 +${modalInfo.delta} pts`:`⬇️🔵 ${modalInfo.delta} pts`}
-                </span>
-                <span style={{marginLeft:"auto",color:C.muted}}>Score: <strong style={{color:C.text}}>{modalInfo.composite}/100</strong></span>
-              </div>
-
-              <div style={{flex:1,overflowY:"auto",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:6}}>
-                {Object.entries(modalInfo.details).map(([key,det])=>{
-                  const isPos=det.delta>0.3,isNeg=det.delta<-0.3;
-                  const col=isPos?C.high:isNeg?C.low:"#9ca3af";
-                  const bg=isPos?"rgba(239,68,68,0.06)":isNeg?"rgba(59,130,246,0.06)":"rgba(255,255,255,0.02)";
-                  return(
-                    <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 8px",borderLeft:`3px solid ${col}`}}>
-                      <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:1}}>{det.label}</div>
-                      <div style={{fontSize:"0.51rem",fontFamily:"monospace",color:"#8b5cf6",marginBottom:2}}>📍 {det.location}</div>
-                      <div style={{fontSize:"0.95rem",fontWeight:900,fontFamily:"monospace",color:col,marginBottom:1}}>
-                        {fmtVal(key,det.raw)}<span style={{fontSize:"0.6rem",marginLeft:2}}>{unitLabel(key)}</span>
-                      </div>
-                      <div style={{fontSize:"0.56rem",color:col,fontWeight:700,marginBottom:2}}>
-                        {isPos?"⬆ Compression +"+det.delta.toFixed(1):isNeg?"⬇ Expansion "+det.delta.toFixed(1):"→ Neutral"}
-                      </div>
-                      <div style={{fontSize:"0.54rem",color:C.muted,fontFamily:"monospace",lineHeight:1.3}}>{det.desc}</div>
-                    </div>
-                  );
-                })}
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{padding:"3px 10px",borderRadius:14,fontSize:"0.72rem",fontWeight:700,
+                  background:modalInfo.status==="perfect"?"rgba(168,85,247,0.15)":modalInfo.status==="high"?"rgba(239,68,68,0.12)":"rgba(59,130,246,0.12)",
+                  color:sc(modalInfo.status),border:`1px solid ${sc(modalInfo.status)}55`}}>
+                  {modalInfo.status==="perfect"?"🟣 Optimal":modalInfo.status==="high"?"🔴 Pinched — Too High":"🔵 Expanded — Too Low"}
+                </div>
+                <button onClick={()=>setModalDay(null)} style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${C.border}`,color:C.text,width:26,height:26,borderRadius:5,cursor:"pointer",fontSize:"0.85rem",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
               </div>
             </div>
 
-            {/* RIGHT: Summary + Close Button */}
+            {/* Score + trend */}
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,padding:"6px 10px",background:"rgba(255,255,255,0.03)",borderRadius:6,fontFamily:"monospace",fontSize:"0.7rem",flexWrap:"wrap"}}>
+              <span style={{color:C.muted}}>Trend:</span>
+              <span style={{fontWeight:700,color:modalInfo.delta==null?C.muted:modalInfo.delta>2?C.high:modalInfo.delta<-2?C.low:"#9ca3af"}}>
+                {modalInfo.delta==null?"No prior data":modalInfo.delta>2?`⬆️ +${modalInfo.delta} pts`:modalInfo.delta<-2?`⬇️ ${modalInfo.delta} pts`:`➡️ ${modalInfo.delta>0?"+":""}${modalInfo.delta} pts`}
+              </span>
+              <span style={{color:C.muted,marginLeft:8}}>Score: <strong style={{color:C.text}}>{modalInfo.composite}/100</strong></span>
+              <span style={{color:C.muted,marginLeft:8}}>Total Δ: <strong style={{color:modalInfo.totalDelta>0?C.high:C.low}}>{modalInfo.totalDelta>0?"+":""}{modalInfo.totalDelta.toFixed(1)}</strong></span>
+              <span style={{color:C.muted,fontSize:"0.62rem",marginLeft:"auto"}}>18 metrics · 5 locations</span>
+            </div>
+
+            {/* Metric cards — all 18 */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(165px,1fr))",gap:6,marginBottom:10}}>
+              {Object.entries(modalInfo.details).map(([key,det])=>{
+                const isPos = det.delta > 0.3;
+                const isNeg = det.delta < -0.3;
+                const col = isPos?C.high:isNeg?C.low:"#9ca3af";
+                const bg = isPos?"rgba(239,68,68,0.06)":isNeg?"rgba(59,130,246,0.06)":"rgba(255,255,255,0.02)";
+                return(
+                  <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 9px",borderLeft:`3px solid ${col}`}}>
+                    <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{det.label}</div>
+                    <div style={{fontSize:"1.0rem",fontWeight:900,fontFamily:"monospace",color:col,marginBottom:1}}>
+                      {fmtVal(key, det.raw)}<span style={{fontSize:"0.62rem",marginLeft:3}}>{unitLabel(key)}</span>
+                    </div>
+                    <div style={{fontSize:"0.58rem",color:col,fontWeight:700,marginBottom:2}}>
+                      {isPos?"⬆ Compression +"+det.delta.toFixed(1):isNeg?"⬇ Expansion "+det.delta.toFixed(1):"→ Neutral"}
+                    </div>
+                    <div style={{fontSize:"0.56rem",color:C.muted,fontFamily:"monospace",lineHeight:1.3}}>{det.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Summary */}
+            <div style={{background:"rgba(168,85,247,0.06)",borderRadius:6,padding:11,fontSize:"0.75rem",lineHeight:1.65,borderLeft:`3px solid ${C.perfect}`}}>
+              {buildSummary(modalInfo.status, dayData[modalDay], modalInfo.composite, modalInfo.details)}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}            {/* RIGHT: Summary & Score Breakdown */}
             <div style={{flex:"0 0 35%",display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"flex-start",gap:8}}>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <div style={{padding:"3px 10px",borderRadius:14,fontSize:"0.72rem",fontWeight:700,background:modalInfo.status==="perfect"?"rgba(168,85,247,0.15)":modalInfo.status==="high"?"rgba(239,68,68,0.12)":"rgba(59,130,246,0.12)",color:sc(modalInfo.status),border:`1px solid ${sc(modalInfo.status)}55`}}>
@@ -711,10 +676,24 @@ export default function App() {
                 <button onClick={()=>setModalDay(null)} style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${C.border}`,color:C.text,width:24,height:24,borderRadius:5,cursor:"pointer",fontSize:"0.8rem",display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>✕</button>
               </div>
 
-              <div style={{background:"rgba(168,85,247,0.06)",borderRadius:6,padding:10,fontSize:"0.73rem",lineHeight:1.7,borderLeft:`3px solid ${C.perfect}`,flex:1,overflow:"auto"}}>
-                {buildSummary(modalInfo.status,dayData[modalDay],modalInfo.composite,modalInfo.details)}
+              <div style={{background:"rgba(168,85,247,0.06)",borderRadius:6,padding:10,fontSize:"0.7rem",lineHeight:1.8,borderLeft:`3px solid ${C.perfect}`,flex:1,overflow:"auto"}}>
+                <div style={{fontWeight:800,marginBottom:6,fontSize:"0.74rem"}}>Score Breakdown: {modalInfo.composite}/100</div>
+                <div style={{color:C.muted,marginBottom:4,fontSize:"0.67rem"}}>Baseline: 62 + Σ(deltas) = {modalInfo.composite}</div>
+                <div style={{color:modalInfo.totalDelta>0?C.high:C.low,marginBottom:8,fontSize:"0.68rem",fontWeight:700}}>Total Δ: {modalInfo.totalDelta>0?"+":""}​{modalInfo.totalDelta.toFixed(1)} pts</div>
+                
+                <div style={{fontSize:"0.67rem",fontWeight:700,color:"#a78bfa",marginBottom:5}}>Top 8 Contributors:</div>
+                {Object.entries(modalInfo.details).sort((a,b)=>Math.abs(b[1].delta)-Math.abs(a[1].delta)).slice(0,8).map(([key,det])=>(
+                  <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3,fontSize:"0.66rem"}}>
+                    <span style={{color:C.muted,flex:1}}>{det.label}</span>
+                    <span style={{color:det.delta>0?C.high:det.delta<0?C.low:"#9ca3af",fontWeight:700,marginLeft:4}}>{det.delta>0?"+":""}​{det.delta.toFixed(1)}</span>
+                  </div>
+                ))}
+                
+                <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`,fontSize:"0.67rem",color:C.muted,lineHeight:1.6}}>
+                  {buildSummary(modalInfo.status,dayData[modalDay],modalInfo.composite,modalInfo.details)}
+                </div>
               </div>
-            </div>
+            </div>            </div>
           </div>
         </div>
       )}
