@@ -107,10 +107,9 @@ function parseJSON(json, varList) {
 }
 
 async function fetchMonthAll(year, month) {
-  /
   // Throttle API calls to avoid 429 errors
   const delay = (ms) => new Promise(r => setTimeout(r, ms));
-/ Parallel fetch: Toronto + 4 geo nodes
+  // Parallel fetch: Toronto + 4 geo nodes
   const [torJson, vanJson, winJson, hudJson, halJson] = await Promise.all([
     (async () => { await delay(0); return await fetchLocation(LOCS.toronto.lat, LOCS.toronto.lon, TORONTO_VARS, year, month); })(),
     (async () => { await delay(150); return await fetchLocation(LOCS.vancouver.lat, LOCS.vancouver.lon, GEO_VARS, year, month); })(),
