@@ -411,47 +411,48 @@ function scoringEngine(d) {
 
   // 19. CLOSED LOW DETECTOR (weight ±12)
   // Signature: geo500 low + temp500 cold + pressure dropping simultaneously
-  // Calculate "closed low score" = how much all 3 are pushing toward low
-  if (d.geo500 != null && d.temp500 != null && d.pressure != null) {
+  if (d.geo500 != null || d.temp500 != null || d.pressure != null) {
     let closedLowScore = 0;
-    if (d.geo500 < 5400) closedLowScore += 4;        // very deep trough = closed low likely
-    if (d.temp500 < -22) closedLowScore += 4;        // very cold core = closed low
-    if (d.pressure < 1010) closedLowScore += 4;      // low pressure = closed low
-    const delta = closedLowScore - 6; // baseline 6 (neutral if 2/3 signals present)
+    let activeSignals = 0;
+    if (d.geo500 != null && d.geo500 < 5400) { closedLowScore += 4; activeSignals++; }
+    if (d.temp500 != null && d.temp500 < -22) { closedLowScore += 4; activeSignals++; }
+    if (d.pressure != null && d.pressure < 1010) { closedLowScore += 4; activeSignals++; }
+    const delta = activeSignals > 0 ? closedLowScore - 6 : 0;
     addDelta("closedLow", delta, 12, "Closed Low Detector (Pinch Signature)", 
-      `Combo: geo${Math.round(d.geo500)}m, temp${d.temp500.toFixed(1)}°C, pressure${fmtInhg(hpaToInhg(d.pressure))}inHg — closed low when all 3 extreme`);
+      `Combo: geo${d.geo500 ? Math.round(d.geo500) + "m" : "N/A"}, temp${d.temp500 ? d.temp500.toFixed(1) + "°C" : "N/A"}, pressure${d.pressure ? fmtInhg(hpaToInhg(d.pressure)) + "inHg" : "N/A"} — closed low when all 3 extreme`);
   }
 
   // 20. CONFLUENCE INDEX (weight ±8)
-  // Signature: When 500hPa geopotential is very low AND temperature is very cold
-  // (lines packed tightly in direction of flow)
-  if (d.geo500 != null && d.temp500 != null) {
+  if (d.geo500 != null || d.temp500 != null) {
     let delta = 0;
-    // Both low geo + cold temp = tight confluence = PINCH
-    if (d.geo500 < 5450 && d.temp500 < -20) delta = +Math.min(8, 8); // both extreme = max pinch
-    else if (d.geo500 > 5700 && d.temp500 > -15) delta = -Math.min(8, 8); // both relaxed = expansion
-    else {
-      // Mixed: one extreme, one normal = moderate signal
-      const geoFactor = d.geo500 < 5500 ? +4 : d.geo500 > 5700 ? -4 : 0;
-      const tempFactor = d.temp500 < -20 ? +4 : d.temp500 > -14 ? -4 : 0;
-      delta = (geoFactor + tempFactor) / 2;
+    if (d.geo500 != null && d.temp500 != null) {
+      if (d.geo500 < 5450 && d.temp500 < -20) delta = +8;
+      else if (d.geo500 > 5700 && d.temp500 > -15) delta = -8;
+      else {
+        const geoFactor = d.geo500 < 5500 ? +4 : d.geo500 > 5700 ? -4 : 0;
+        const tempFactor = d.temp500 < -20 ? +4 : d.temp500 > -14 ? -4 : 0;
+        delta = (geoFactor + tempFactor) / 2;
+      }
+    } else if (d.geo500 != null) {
+      delta = d.geo500 < 5450 ? +4 : d.geo500 > 5700 ? -4 : 0;
+    } else if (d.temp500 != null) {
+      delta = d.temp500 < -20 ? +4 : d.temp500 > -14 ? -4 : 0;
     }
     addDelta("confluence", delta, 8, "Confluence Index (Lines Packed)", 
-      `geo500 ${Math.round(d.geo500)}m, temp500 ${d.temp500.toFixed(1)}°C — tight lines = pinch`);
+      `geo500 ${d.geo500 ? Math.round(d.geo500) + "m" : "N/A"}, temp500 ${d.temp500 ? d.temp500.toFixed(1) + "°C" : "N/A"} — tight lines = pinch`);
   }
 
   // 21. RELATIVE COLD CORE (weight ±10)
-  // Signature: Toronto 500hPa temp is MUCH colder than surrounding area
-  // If T_tor < (T_avg_region - 3°C) = closed low core overhead = pinch
-  // Simplified: compare Toronto temp500 to May normal (-18°C)
   if (d.temp500 != null) {
-    const mayNormal = -18; // May 500hPa normal for Toronto region
+    const mayNormal = -18;
     const diff = d.temp500 - mayNormal;
     let delta = 0;
-    if (diff < -4) delta = +Math.min(10, ((-4-diff)/3)*10); // much colder = closed low = pinch
-    else if (diff > 2) delta = -Math.min(10, ((diff-2)/4)*8); // much warmer = blocking ridge
+    if (diff < -4) delta = +Math.min(10, ((-4-diff)/3)*10);
+    else if (diff > 2) delta = -Math.min(10, ((diff-2)/4)*8);
     addDelta("coldCore", delta, 10, "Cold Core Relative to Normal (Closed Low)", 
       `${d.temp500.toFixed(1)}°C vs May normal -18°C (diff ${diff.toFixed(1)}°C) — extreme cold = closed low`);
+  } else {
+    addDelta("coldCore", 0, 10, "Cold Core Relative to Normal (Closed Low)", "N/A");
   }
 
   }
@@ -547,7 +548,7 @@ export default function App() {
   const modalInfo = modalDay ? getInfo(modalDay) : null;
 
   return (
-    <div style={{background:C.bg,height:"100vh",width:"100vw",color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",display:"flex",flexDirection:"column",overflow:"hidden",padding:"3px 6px",boxSizing:"border-box"}}>
+    <div style={{background:C.bg,height:"100vh",width:"100vw",color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",display:"flex",flexDirection:"column",overflow:"hidden",padding:"0px 6px",boxSizing:"border-box"}}>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         *{box-sizing:border-box;margin:0;padding:0}
@@ -643,7 +644,7 @@ export default function App() {
             return(
               <div key={dateStr}
                 onClick={()=>{ if(!isFuture&&info)setModalDay(dateStr===modalDay?null:dateStr); }}
-                style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,cursor:isFuture||!info?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,opacity:isFuture?0.2:1,background:isFuture?"transparent":status==="perfect"?"rgba(168,85,247,0.13)":status==="high"?"rgba(239,68,68,0.12)":status==="low"?"rgba(59,130,246,0.12)":"transparent",outline:modalDay===dateStr?`2px solid ${C.perfect}`:"none",outlineOffset:-2,overflow:"hidden"}}
+                style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,cursor:isFuture||!info?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,opacity:isFuture?0.2:1,background:isFuture?"transparent":status==="perfect"?"rgba(168,85,247,0.4)":status==="high"?"rgba(239,68,68,0.35)":status==="low"?"rgba(59,130,246,0.35)":"transparent",outline:modalDay===dateStr?`2px solid ${C.perfect}`:"none",outlineOffset:-2,overflow:"hidden"}}
               >
                 <div style={{fontSize:"clamp(0.6rem,1vw,0.8rem)",fontWeight:700,fontFamily:"monospace",color:col,lineHeight:1}}>{day}</div>
                 {loading&&!info&&<div style={{width:8,height:8,border:`1.5px solid ${C.border}`,borderTopColor:C.perfect,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
