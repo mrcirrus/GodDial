@@ -279,7 +279,7 @@ function scoringEngine(d) {
     if (v < 0)        delta = +Math.min(8, ((0-v)/6)*8);    // cold airmass = pinch
     else if (v > 12)  delta = -Math.min(8, ((v-12)/5)*6);   // warm stagnant ridge = expansion
     else              delta = -((v-0)/(12-0)-0.5)*3;
-    addDelta("temp850", delta, 8, "850 hPa Temp (1.5km)", `${v.toFixed(1)}°C — May optimal 4–10°C`);
+    addDelta("temp850", delta, 10, "850 hPa Temp (1.5km)", `${v.toFixed(1)}°C — May optimal 4–10°C`);
   }
 
   // 8. 500 hPa Temperature at Toronto (weight 6) — cold core trough detector
@@ -301,7 +301,7 @@ function scoringEngine(d) {
     if (v < 1008)      delta = +Math.min(6, ((1008-v)/8)*6);  // active low = pinch
     else if (v > 1025) delta = +Math.min(6, ((v-1025)/5)*4);  // arctic high = clamp = also pinch
     else               delta = -((v-1008)/(1025-1008)-0.5)*2;
-    addDelta("pressure", delta, 6, "Sea Level Pressure", `${fmtInhg(hpaToInhg(v))} inHg — optimal 29.78–30.27`);
+    addDelta("pressure", delta, 8, "Sea Level Pressure", `${fmtInhg(hpaToInhg(v))} inHg — optimal 29.78–30.27`);
   }
 
   // 10. Atmospheric Thickness 850-500 hPa (weight 6) — warm/cold column
@@ -313,7 +313,7 @@ function scoringEngine(d) {
     if (v < 5400)      delta = +Math.min(6, ((5400-v)/100)*6);
     else if (v > 5720) delta = -Math.min(6, ((v-5720)/100)*5);
     else               delta = -((v-5400)/(5720-5400)-0.5)*2;
-    addDelta("thickness", delta, 6, "Thickness 850–500hPa", `${Math.round(v)} m — warm >5700, cold <5400`);
+    addDelta("thickness", delta, 8, "Thickness 850–500hPa", `${Math.round(v)} m — warm >5700, cold <5400`);
   }
 
   // 11. Jet Coherence Ratio 200÷500 hPa (weight 4) — organized vs diffuse jet
@@ -324,7 +324,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v < 1.5)      delta = +Math.min(4, ((1.5-v)/0.5)*4); // diffuse = disordered = pinch-adjacent
     else if (v > 2.5) delta = -Math.min(4, ((v-2.5)/1.0)*4); // well-organized = expansion
-    addDelta("jetRatio", delta, 4, "Jet Coherence (200÷500)", `${v.toFixed(2)} ratio — optimal >2.5`);
+    addDelta("jetRatio", delta, 6, "Jet Coherence (200÷500)", `${v.toFixed(2)} ratio — optimal >2.5`);
   }
 
   // 12. Wind Direction at 300 hPa (weight 5) — flow quality
@@ -340,7 +340,7 @@ function scoringEngine(d) {
     else if (v >= 310 && v <= 360) delta = +Math.min(5, ((v-310)/50)*5); // NW = pinch
     else if (v >= 0 && v <= 60)    delta = +Math.min(5, 5);    // N/NE = arctic = max pinch
     else if (v >= 160 && v <= 210) delta = -Math.min(3, 3);    // SSW = warm sector
-    addDelta("dir300", delta, 5, "300 hPa Flow Direction", `${Math.round(v)}° — SW(210-270°)=optimal, N/NW=pinch`);
+    addDelta("dir300", delta, 6, "300 hPa Flow Direction", `${Math.round(v)}° — SW(210-270°)=optimal, N/NW=pinch`);
   }
 
   // 13. Direction Consistency 200 vs 300 hPa (weight 3) — coherence check
@@ -351,7 +351,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v > 60)       delta = +Math.min(3, ((v-60)/40)*3);
     else if (v < 20)  delta = -Math.min(3, ((20-v)/20)*3);
-    addDelta("dirDiff", delta, 3, "Dir Coherence (200 vs 300)", `${Math.round(v)}° diff — <20°=coherent, >60°=shear`);
+    addDelta("dirDiff", delta, 2, "Dir Coherence (200 vs 300)", `${Math.round(v)}° diff — <20°=coherent, >60°=shear`);
   }
 
   // ── GEOGRAPHIC NODE METRICS ──────────────────────────────────────────────
@@ -364,7 +364,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v > 200)      delta = +Math.min(4, ((v-200)/30)*4);  // over-pressured upstream
     else if (v < 100) delta = -Math.min(4, ((100-v)/50)*4);  // collapsed upstream
-    addDelta("van_wind300", delta, 4, "Vancouver 300hPa Jet (upstream)", `${v.toFixed(1)} km/h — Pacific jet entry`);
+    addDelta("van_wind300", delta, 5, "Vancouver 300hPa Jet (upstream)", `${v.toFixed(1)} km/h — Pacific jet entry`);
   }
 
   // 15. Vancouver 500 hPa Geo Height — upstream trough/ridge
@@ -374,7 +374,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v < 5500)      delta = +Math.min(5, ((5500-v)/150)*5); // trough approaching
     else if (v > 5760) delta = -Math.min(5, ((v-5760)/100)*4); // ridge upstream = good
-    addDelta("van_geo500", delta, 5, "Vancouver 500hPa Geo (upstream trough)", `${Math.round(v)} m`);
+    addDelta("van_geo500", delta, 7, "Vancouver 500hPa Geo (upstream trough)", `${Math.round(v)} m`);
   }
 
   // 16. Winnipeg 500 hPa Geo — mid-continent trough position
@@ -385,7 +385,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (diff < -80)   delta = +Math.min(5, ((-80-diff)/100)*5); // deep trough west = incoming pinch
     else if (diff > 80) delta = -Math.min(5, ((diff-80)/100)*4); // ridge west = expansion
-    addDelta("win_geo500", delta, 5, "Winnipeg–Toronto Geo Diff (trough position)", `${Math.round(diff)} m diff`);
+    addDelta("win_geo500", delta, 7, "Winnipeg–Toronto Geo Diff (trough position)", `${Math.round(diff)} m diff`);
   }
 
   // 17. Hudson Bay Pressure — arctic high clamp detector
@@ -395,7 +395,7 @@ function scoringEngine(d) {
     let delta = 0;
     if (v > 1030)      delta = +Math.min(6, ((v-1030)/6)*6);  // arctic high = clamp = pinch
     else if (v < 1010) delta = -Math.min(3, ((1010-v)/8)*3);  // low pressure north = relief
-    addDelta("hud_pressure", delta, 6, "Hudson Bay Pressure (arctic clamp)", `${fmtInhg(hpaToInhg(v))} inHg at 60°N`);
+    addDelta("hud_pressure", delta, 10, "Hudson Bay Pressure (arctic clamp)", `${fmtInhg(hpaToInhg(v))} inHg at 60°N`);
   }
 
   // 18. Halifax 500 hPa Geo — downstream exit detector
@@ -500,7 +500,7 @@ export default function App() {
   const modalInfo = modalDay ? getInfo(modalDay) : null;
 
   return (
-    <div style={{background:C.bg,height:"100vh",width:"100vw",color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",display:"flex",flexDirection:"column",overflow:"hidden",padding:"6px 10px",boxSizing:"border-box"}}>
+    <div style={{background:C.bg,height:"100vh",width:"100vw",color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",display:"flex",flexDirection:"column",overflow:"hidden",padding:"3px 6px",boxSizing:"border-box"}}>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         *{box-sizing:border-box;margin:0;padding:0}
@@ -510,7 +510,7 @@ export default function App() {
       `}</style>
 
       {/* HEADER */}
-      <div style={{textAlign:"center",flexShrink:0,paddingBottom:4}}>
+      <div style={{textAlign:"center",flexShrink:0,paddingBottom:1}}>
         <h1 style={{fontSize:"clamp(1.1rem,2.5vw,1.7rem)",fontWeight:900,letterSpacing:"-0.03em",background:"linear-gradient(135deg,#fff 30%,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",lineHeight:1.1}}>
           Toronto God Dial
         </h1>
@@ -521,7 +521,7 @@ export default function App() {
       </div>
 
       {/* INFO ROW */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,flexShrink:0,marginBottom:5}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,flexShrink:0,marginBottom:2}}>
         {/* Left: Reading guide */}
         <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 10px",maxHeight:"18vh",overflowY:"auto"}}>
           <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:5}}>God Dial Reading Guide — 18 Metrics, 5 Locations</div>
@@ -570,7 +570,7 @@ export default function App() {
       </div>
 
       {/* CALENDAR NAV */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,marginBottom:4}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,marginBottom:2}}>
         <button onClick={goPrev} style={{background:C.panel,border:`1px solid ${C.border}`,color:C.text,padding:"4px 12px",borderRadius:5,cursor:"pointer",fontFamily:"monospace",fontSize:"0.7rem"}}>← Prev</button>
         <span style={{fontSize:"0.95rem",fontWeight:700}}>{MONTHS[month]} {year}</span>
         <button onClick={goNext} disabled={isCurrentMonth} style={{background:C.panel,border:`1px solid ${C.border}`,color:isCurrentMonth?"#374151":C.text,padding:"4px 12px",borderRadius:5,cursor:isCurrentMonth?"not-allowed":"pointer",fontFamily:"monospace",fontSize:"0.7rem",opacity:isCurrentMonth?0.4:1}}>Next →</button>
@@ -581,7 +581,7 @@ export default function App() {
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"rgba(255,255,255,0.03)",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
           {DAYS.map(d=><div key={d} style={{padding:"4px 0",textAlign:"center",fontSize:"0.6rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em"}}>{d}</div>)}
         </div>
-        <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(7,1fr)",gridTemplateRows:`repeat(${totalCells/7},1fr)`,minHeight:0}}>
+        <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(7,1fr)",gridTemplateRows:`repeat(${totalCells/7},1fr)`,flex:1}}>
           {Array.from({length:firstDay}).map((_,i)=>(
             <div key={`e${i}`} style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,background:"rgba(0,0,0,0.1)"}}/>
           ))}
@@ -615,65 +615,59 @@ export default function App() {
 
       {/* MODAL */}
       {modalDay&&modalInfo&&(
-        <div onClick={e=>{if(e.target===e.currentTarget)setModalDay(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:12,backdropFilter:"blur(3px)"}}>
-          <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:10,padding:16,width:"100%",maxWidth:780,maxHeight:"90vh",overflowY:"auto"}}>
+        <div onClick={e=>{if(e.target===e.currentTarget)setModalDay(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:8,backdropFilter:"blur(3px)"}}>
+          <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:10,padding:12,width:"100%",maxWidth:1000,maxHeight:"90vh",display:"flex",gap:12,overflow:"hidden"}}>
 
-            {/* Modal header */}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:6}}>
-              <div style={{fontSize:"0.95rem",fontWeight:800,letterSpacing:"-0.02em"}}>
+            {/* LEFT: Metrics Cards - Scrollable */}
+            <div style={{flex:"0 0 65%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+              <div style={{fontSize:"0.95rem",fontWeight:800,letterSpacing:"-0.02em",marginBottom:8}}>
                 {new Date(modalDay+"T12:00:00").toLocaleDateString("en-CA",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{padding:"3px 10px",borderRadius:14,fontSize:"0.72rem",fontWeight:700,
-                  background:modalInfo.status==="perfect"?"rgba(168,85,247,0.15)":modalInfo.status==="high"?"rgba(239,68,68,0.12)":"rgba(59,130,246,0.12)",
-                  color:sc(modalInfo.status),border:`1px solid ${sc(modalInfo.status)}55`}}>
-                  {modalInfo.status==="perfect"?"🟣 Optimal":modalInfo.status==="high"?"🔴 Pinched — Too High":"🔵 Expanded — Too Low"}
-                </div>
-                <button onClick={()=>setModalDay(null)} style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${C.border}`,color:C.text,width:26,height:26,borderRadius:5,cursor:"pointer",fontSize:"0.85rem",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,padding:"6px 10px",background:"rgba(255,255,255,0.03)",borderRadius:6,fontFamily:"monospace",fontSize:"0.7rem",flexWrap:"wrap"}}>
+                <span style={{color:C.muted}}>Trend:</span>
+                <span style={{fontWeight:700,color:modalInfo.delta==null?C.muted:modalInfo.delta>0?C.high:C.low}}>
+                  {modalInfo.delta==null?"No prior data":modalInfo.delta>0?`⬆️🔴 +${modalInfo.delta} pts`:`⬇️🔵 ${modalInfo.delta} pts`}
+                </span>
+                <span style={{marginLeft:"auto",color:C.muted}}>Score: <strong style={{color:C.text}}>{modalInfo.composite}/100</strong></span>
+              </div>
+
+              <div style={{flex:1,overflowY:"auto",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:6}}>
+                {Object.entries(modalInfo.details).map(([key,det])=>{
+                  const isPos=det.delta>0.3,isNeg=det.delta<-0.3;
+                  const col=isPos?C.high:isNeg?C.low:"#9ca3af";
+                  const bg=isPos?"rgba(239,68,68,0.06)":isNeg?"rgba(59,130,246,0.06)":"rgba(255,255,255,0.02)";
+                  return(
+                    <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 8px",borderLeft:`3px solid ${col}`}}>
+                      <div style={{fontSize:"0.55rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:1}}>{det.label}</div>
+                      <div style={{fontSize:"0.51rem",fontFamily:"monospace",color:"#8b5cf6",marginBottom:2}}>📍 {det.location}</div>
+                      <div style={{fontSize:"0.95rem",fontWeight:900,fontFamily:"monospace",color:col,marginBottom:1}}>
+                        {fmtVal(key,det.raw)}<span style={{fontSize:"0.6rem",marginLeft:2}}>{unitLabel(key)}</span>
+                      </div>
+                      <div style={{fontSize:"0.56rem",color:col,fontWeight:700,marginBottom:2}}>
+                        {isPos?"⬆ Compression +"+det.delta.toFixed(1):isNeg?"⬇ Expansion "+det.delta.toFixed(1):"→ Neutral"}
+                      </div>
+                      <div style={{fontSize:"0.54rem",color:C.muted,fontFamily:"monospace",lineHeight:1.3}}>{det.desc}</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Score + trend */}
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,padding:"6px 10px",background:"rgba(255,255,255,0.03)",borderRadius:6,fontFamily:"monospace",fontSize:"0.7rem",flexWrap:"wrap"}}>
-              <span style={{color:C.muted}}>Trend:</span>
-              <span style={{fontWeight:700,color:modalInfo.delta==null?C.muted:modalInfo.delta>2?C.high:modalInfo.delta<-2?C.low:"#9ca3af"}}>
-                {modalInfo.delta==null?"No prior data":modalInfo.delta>2?`⬆️ +${modalInfo.delta} pts`:modalInfo.delta<-2?`⬇️ ${modalInfo.delta} pts`:`➡️ ${modalInfo.delta>0?"+":""}${modalInfo.delta} pts`}
-              </span>
-              <span style={{color:C.muted,marginLeft:8}}>Score: <strong style={{color:C.text}}>{modalInfo.composite}/100</strong></span>
-              <span style={{color:C.muted,marginLeft:8}}>Total Δ: <strong style={{color:modalInfo.totalDelta>0?C.high:C.low}}>{modalInfo.totalDelta>0?"+":""}{modalInfo.totalDelta.toFixed(1)}</strong></span>
-              <span style={{color:C.muted,fontSize:"0.62rem",marginLeft:"auto"}}>18 metrics · 5 locations</span>
-            </div>
+            {/* RIGHT: Summary + Close Button */}
+            <div style={{flex:"0 0 35%",display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"flex-start",gap:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{padding:"3px 10px",borderRadius:14,fontSize:"0.72rem",fontWeight:700,background:modalInfo.status==="perfect"?"rgba(168,85,247,0.15)":modalInfo.status==="high"?"rgba(239,68,68,0.12)":"rgba(59,130,246,0.12)",color:sc(modalInfo.status),border:`1px solid ${sc(modalInfo.status)}55`}}>
+                  {modalInfo.status==="perfect"?"🟣 Optimal":modalInfo.status==="high"?"🔴 Too High — Pinched":"🔵 Too Low — No Pressure"}
+                </div>
+                <button onClick={()=>setModalDay(null)} style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${C.border}`,color:C.text,width:24,height:24,borderRadius:5,cursor:"pointer",fontSize:"0.8rem",display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>✕</button>
+              </div>
 
-            {/* Metric cards — all 18 */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(165px,1fr))",gap:6,marginBottom:10}}>
-              {Object.entries(modalInfo.details).map(([key,det])=>{
-                const isPos = det.delta > 0.3;
-                const isNeg = det.delta < -0.3;
-                const col = isPos?C.high:isNeg?C.low:"#9ca3af";
-                const bg = isPos?"rgba(239,68,68,0.06)":isNeg?"rgba(59,130,246,0.06)":"rgba(255,255,255,0.02)";
-                return(
-                  <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 9px",borderLeft:`3px solid ${col}`}}>
-                    <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:1}}>{det.label}</div>
-                    <div style={{fontSize:"0.52rem",fontFamily:"monospace",color:"#8b5cf6",marginBottom:2}}>📍 {det.location}</div>
-                    <div style={{fontSize:"1.0rem",fontWeight:900,fontFamily:"monospace",color:col,marginBottom:1}}>
-                      {fmtVal(key, det.raw)}<span style={{fontSize:"0.62rem",marginLeft:3}}>{unitLabel(key)}</span>
-                    </div>
-                    <div style={{fontSize:"0.58rem",color:col,fontWeight:700,marginBottom:2}}>
-                      {isPos?"⬆ Compression +"+det.delta.toFixed(1):isNeg?"⬇ Expansion "+det.delta.toFixed(1):"→ Neutral"}
-                    </div>
-                    <div style={{fontSize:"0.56rem",color:C.muted,fontFamily:"monospace",lineHeight:1.3}}>{det.desc}</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Summary */}
-            <div style={{background:"rgba(168,85,247,0.06)",borderRadius:6,padding:11,fontSize:"0.75rem",lineHeight:1.65,borderLeft:`3px solid ${C.perfect}`}}>
-              {buildSummary(modalInfo.status, dayData[modalDay], modalInfo.composite, modalInfo.details)}
+              <div style={{background:"rgba(168,85,247,0.06)",borderRadius:6,padding:10,fontSize:"0.73rem",lineHeight:1.7,borderLeft:`3px solid ${C.perfect}`,flex:1,overflow:"auto"}}>
+                {buildSummary(modalInfo.status,dayData[modalDay],modalInfo.composite,modalInfo.details)}
+              </div>
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+      )} );
 }
