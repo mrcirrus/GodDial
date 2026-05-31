@@ -65,6 +65,7 @@ const METRIC_LOCS = {
   geo300:"Toronto", geo500:"Toronto", temp850:"Toronto", temp500:"Toronto",
   dir300:"Toronto", dir200:"Toronto", pressure:"Toronto", thickness:"Toronto",
   jetRatio:"Toronto", dirDiff:"Toronto",
+  closedLow:"Toronto", confluence:"Toronto", coldCore:"Toronto",
   van_wind300:"Vancouver", van_geo500:"Vancouver",
   win_geo500:"Winnipeg", hud_pressure:"Hudson Bay", hal_geo500:"Halifax"
 };
@@ -407,6 +408,52 @@ function scoringEngine(d) {
     if (v < 5500)       delta = +Math.min(4, ((5500-v)/150)*4); // Atlantic cutoff = sustained pinch
     else if (v > 5720)  delta = -Math.min(4, ((v-5720)/100)*3); // exit ridge = systems leaving
     addDelta("hal_geo500", delta, 4, "Halifax 500hPa Geo (downstream exit)", `${Math.round(v)} m`);
+
+  // 19. CLOSED LOW DETECTOR (weight ±12)
+  // Signature: geo500 low + temp500 cold + pressure dropping simultaneously
+  // Calculate "closed low score" = how much all 3 are pushing toward low
+  if (d.geo500 != null && d.temp500 != null && d.pressure != null) {
+    let closedLowScore = 0;
+    if (d.geo500 < 5400) closedLowScore += 4;        // very deep trough = closed low likely
+    if (d.temp500 < -22) closedLowScore += 4;        // very cold core = closed low
+    if (d.pressure < 1010) closedLowScore += 4;      // low pressure = closed low
+    const delta = closedLowScore - 6; // baseline 6 (neutral if 2/3 signals present)
+    addDelta("closedLow", delta, 12, "Closed Low Detector (Pinch Signature)", 
+      `Combo: geo${Math.round(d.geo500)}m, temp${d.temp500.toFixed(1)}°C, pressure${fmtInhg(hpaToInhg(d.pressure))}inHg — closed low when all 3 extreme`);
+  }
+
+  // 20. CONFLUENCE INDEX (weight ±8)
+  // Signature: When 500hPa geopotential is very low AND temperature is very cold
+  // (lines packed tightly in direction of flow)
+  if (d.geo500 != null && d.temp500 != null) {
+    let delta = 0;
+    // Both low geo + cold temp = tight confluence = PINCH
+    if (d.geo500 < 5450 && d.temp500 < -20) delta = +Math.min(8, 8); // both extreme = max pinch
+    else if (d.geo500 > 5700 && d.temp500 > -15) delta = -Math.min(8, 8); // both relaxed = expansion
+    else {
+      // Mixed: one extreme, one normal = moderate signal
+      const geoFactor = d.geo500 < 5500 ? +4 : d.geo500 > 5700 ? -4 : 0;
+      const tempFactor = d.temp500 < -20 ? +4 : d.temp500 > -14 ? -4 : 0;
+      delta = (geoFactor + tempFactor) / 2;
+    }
+    addDelta("confluence", delta, 8, "Confluence Index (Lines Packed)", 
+      `geo500 ${Math.round(d.geo500)}m, temp500 ${d.temp500.toFixed(1)}°C — tight lines = pinch`);
+  }
+
+  // 21. RELATIVE COLD CORE (weight ±10)
+  // Signature: Toronto 500hPa temp is MUCH colder than surrounding area
+  // If T_tor < (T_avg_region - 3°C) = closed low core overhead = pinch
+  // Simplified: compare Toronto temp500 to May normal (-18°C)
+  if (d.temp500 != null) {
+    const mayNormal = -18; // May 500hPa normal for Toronto region
+    const diff = d.temp500 - mayNormal;
+    let delta = 0;
+    if (diff < -4) delta = +Math.min(10, ((-4-diff)/3)*10); // much colder = closed low = pinch
+    else if (diff > 2) delta = -Math.min(10, ((diff-2)/4)*8); // much warmer = blocking ridge
+    addDelta("coldCore", delta, 10, "Cold Core Relative to Normal (Closed Low)", 
+      `${d.temp500.toFixed(1)}°C vs May normal -18°C (diff ${diff.toFixed(1)}°C) — extreme cold = closed low`);
+  }
+
   }
 
   // ── COMPOSITE ────────────────────────────────────────────────────────────
