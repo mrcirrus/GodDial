@@ -587,7 +587,7 @@ export default function App() {
             return(
               <div key={dateStr}
                 onClick={()=>{ if(!isFuture&&info)setModalDay(dateStr===modalDay?null:dateStr); }}
-                style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,cursor:isFuture||!info?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,opacity:isFuture?0.2:1,background:isFuture?"transparent":status==="perfect"?"rgba(168,85,247,0.13)":status==="high"?"rgba(239,68,68,0.12)":status==="low"?"rgba(59,130,246,0.12)":"transparent",outline:modalDay===dateStr?`2px solid ${C.perfect}`:"none",outlineOffset:-2,overflow:"hidden"}}
+                style={{borderRight:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`,cursor:isFuture||!info?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,opacity:isFuture?0.2:1,background:isFuture?"transparent":status==="perfect"?"rgba(168,85,247,0.55)":status==="high"?"rgba(239,68,68,0.50)":status==="low"?"rgba(59,130,246,0.50)":"transparent",outline:modalDay===dateStr?`2px solid ${C.perfect}`:"none",outlineOffset:-2,overflow:"hidden"}}
               >
                 <div style={{fontSize:"clamp(0.6rem,1vw,0.8rem)",fontWeight:700,fontFamily:"monospace",color:col,lineHeight:1}}>{day}</div>
                 {loading&&!info&&<div style={{width:8,height:8,border:`1.5px solid ${C.border}`,borderTopColor:C.perfect,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
@@ -641,7 +641,7 @@ export default function App() {
                 const isPos = det.delta > 0.3;
                 const isNeg = det.delta < -0.3;
                 const col = isPos?C.high:isNeg?C.low:"#9ca3af";
-                const bg = isPos?"rgba(239,68,68,0.06)":isNeg?"rgba(59,130,246,0.06)":"rgba(255,255,255,0.02)";
+                const bg = isPos?"rgba(239,68,68,0.20)":isNeg?"rgba(59,130,246,0.20)":"rgba(255,255,255,0.08)";
                 return(
                   <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 9px",borderLeft:`3px solid ${col}`}}>
                     <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{det.label}</div>
