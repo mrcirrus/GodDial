@@ -551,7 +551,7 @@ export default function App() {
               {l:"Hudson Bay pressure",    d:"Arctic high clamp detector 60°N"},
               {l:"Halifax 500hPa Geo",     d:"Downstream exit or cutoff low?"},
             ].map(({l,d})=>(
-              <div key={l} style={{background:"rgba(168,85,247,0.07)",borderRadius:4,padding:"3px 6px",borderLeft:`2px solid ${C.perfect}`}}>
+              <div key={l} style={{background:"rgba(168,85,247,0.07)",borderRadius:4,padding:"0px 6px",borderLeft:`2px solid ${C.perfect}`}}>
                 <div style={{fontWeight:700,fontSize:"0.6rem",lineHeight:1.2}}>{l}</div>
                 <div style={{color:C.muted,fontFamily:"monospace",fontSize:"0.56rem"}}>{d}</div>
               </div>
@@ -661,38 +661,6 @@ export default function App() {
             <div style={{background:"rgba(168,85,247,0.06)",borderRadius:6,padding:11,fontSize:"0.75rem",lineHeight:1.65,borderLeft:`3px solid ${C.perfect}`}}>
               {buildSummary(modalInfo.status, dayData[modalDay], modalInfo.composite, modalInfo.details)}
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}            {/* RIGHT: Summary & Score Breakdown */}
-            <div style={{flex:"0 0 35%",display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"flex-start",gap:8}}>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{padding:"3px 10px",borderRadius:14,fontSize:"0.72rem",fontWeight:700,background:modalInfo.status==="perfect"?"rgba(168,85,247,0.15)":modalInfo.status==="high"?"rgba(239,68,68,0.12)":"rgba(59,130,246,0.12)",color:sc(modalInfo.status),border:`1px solid ${sc(modalInfo.status)}55`}}>
-                  {modalInfo.status==="perfect"?"🟣 Optimal":modalInfo.status==="high"?"🔴 Too High — Pinched":"🔵 Too Low — No Pressure"}
-                </div>
-                <button onClick={()=>setModalDay(null)} style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${C.border}`,color:C.text,width:24,height:24,borderRadius:5,cursor:"pointer",fontSize:"0.8rem",display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>✕</button>
-              </div>
-
-              <div style={{background:"rgba(168,85,247,0.06)",borderRadius:6,padding:10,fontSize:"0.7rem",lineHeight:1.8,borderLeft:`3px solid ${C.perfect}`,flex:1,overflow:"auto"}}>
-                <div style={{fontWeight:800,marginBottom:6,fontSize:"0.74rem"}}>Score Breakdown: {modalInfo.composite}/100</div>
-                <div style={{color:C.muted,marginBottom:4,fontSize:"0.67rem"}}>Baseline: 62 + Σ(deltas) = {modalInfo.composite}</div>
-                <div style={{color:modalInfo.totalDelta>0?C.high:C.low,marginBottom:8,fontSize:"0.68rem",fontWeight:700}}>Total Δ: {modalInfo.totalDelta>0?"+":""}​{modalInfo.totalDelta.toFixed(1)} pts</div>
-                
-                <div style={{fontSize:"0.67rem",fontWeight:700,color:"#a78bfa",marginBottom:5}}>Top 8 Contributors:</div>
-                {Object.entries(modalInfo.details).sort((a,b)=>Math.abs(b[1].delta)-Math.abs(a[1].delta)).slice(0,8).map(([key,det])=>(
-                  <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3,fontSize:"0.66rem"}}>
-                    <span style={{color:C.muted,flex:1}}>{det.label}</span>
-                    <span style={{color:det.delta>0?C.high:det.delta<0?C.low:"#9ca3af",fontWeight:700,marginLeft:4}}>{det.delta>0?"+":""}​{det.delta.toFixed(1)}</span>
-                  </div>
-                ))}
-                
-                <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`,fontSize:"0.67rem",color:C.muted,lineHeight:1.6}}>
-                  {buildSummary(modalInfo.status,dayData[modalDay],modalInfo.composite,modalInfo.details)}
-                </div>
-              </div>
-            </div>            </div>
           </div>
         </div>
       )}
