@@ -641,7 +641,8 @@ export default function App() {
                 const isPos = det.delta > 0.3;
                 const isNeg = det.delta < -0.3;
                 const col = isPos?C.high:isNeg?C.low:"#9ca3af";
-                const bg = isPos?"rgba(239,68,68,0.20)":isNeg?"rgba(59,130,246,0.20)":"rgba(255,255,255,0.08)";
+                const bg = isPos?"rgba(239,68,68,0.25)":isNeg?"rgba(59,130,246,0.25)":"rgba(255,255,255,0.08)";
+                const signal = isPos?"+compression":isNeg?"+expansion":"→ neutral";
                 return(
                   <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 9px",borderLeft:`3px solid ${col}`}}>
                     <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:1}}>{det.label}</div>
@@ -657,7 +658,7 @@ export default function App() {
                         const change = curr - prev;
                         if (Math.abs(change) < 0.01) return "➡ 0";
                         return change > 0 ? `⬆ +${Math.abs(change).toFixed(2)}` : `⬇ ${change.toFixed(2)}`;
-                      })()}
+                      })()} <span style={{fontSize:"0.51rem",color:"#a78bfa"}}>({signal})</span>
                     </div>
                     <div style={{fontSize:"0.56rem",color:C.muted,fontFamily:"monospace",lineHeight:1.3}}>{det.desc}</div>
                   </div>
