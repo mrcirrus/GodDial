@@ -246,18 +246,18 @@ function scoringEngine(d) {
     let delta = 0;
     if (v < 9200)      delta = +Math.min(8, ((9200-v)/150)*8); // deep trough = pinch
     else if (v > 9500) delta = -Math.min(8, ((v-9500)/100)*8); // strong ridge = expansion
-    else               delta = -((v-9200)/(9500-9200)-0.5)*3;  // small correction within range
+    else               delta = +((9350-v)/200)*1.5;  // neutral range favors compression
     addDelta("geo300", delta, 8, "300 hPa GeoHeight (9km)", `${Math.round(v)} m — normal 9350–9450`);
   }
 
   // 6. 500 hPa Geopotential Height Toronto (weight 10) — PRIMARY trough/ridge
-  // May normal ~5640–5700m. <5500 = deep trough = pinch. >5750 = blocking ridge.
+  // May normal ~5640–5700m. <5500 = deep trough = pinch. >5760 = blocking ridge.
   if (d.geo500 != null) {
     const v = d.geo500;
     let delta = 0;
     if (v < 5500)      delta = +Math.min(10, ((5500-v)/150)*10);
     else if (v > 5760) delta = -Math.min(10, ((v-5760)/100)*8);
-    else               delta = -((v-5500)/(5760-5500)-0.5)*4;
+    else               delta = +((5700-v)/200)*2;  // neutral range favors compression slightly
     addDelta("geo500", delta, 10, "500 hPa GeoHeight (5.6km)", `${Math.round(v)} m — normal 5640–5700`);
   }
 
@@ -644,7 +644,8 @@ export default function App() {
                 const bg = isPos?"rgba(239,68,68,0.20)":isNeg?"rgba(59,130,246,0.20)":"rgba(255,255,255,0.08)";
                 return(
                   <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 9px",borderLeft:`3px solid ${col}`}}>
-                    <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{det.label}</div>
+                    <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:1}}>{det.label}</div>
+                    <div style={{fontSize:"0.51rem",color:"#a78bfa",fontWeight:700,marginBottom:2}}>📍 {METRIC_LOCS[key]}</div>
                     <div style={{fontSize:"1.0rem",fontWeight:900,fontFamily:"monospace",color:col,marginBottom:1}}>
                       {fmtVal(key, det.raw)}<span style={{fontSize:"0.62rem",marginLeft:3}}>{unitLabel(key)}</span>
                     </div>
