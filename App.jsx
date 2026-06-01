@@ -645,7 +645,7 @@ export default function App() {
                 return(
                   <div key={key} style={{background:bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 9px",borderLeft:`3px solid ${col}`}}>
                     <div style={{fontSize:"0.57rem",fontFamily:"monospace",color:C.muted,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:1}}>{det.label}</div>
-                    <div style={{fontSize:"0.51rem",color:"#a78bfa",fontWeight:700,marginBottom:2}}>📍 {METRIC_LOCS[key]}</div>
+                    <div style={{fontSize:"0.50rem",color:"#a78bfa",fontWeight:700,marginBottom:2}}>📍 Toronto</div>
                     <div style={{fontSize:"1.0rem",fontWeight:900,fontFamily:"monospace",color:col,marginBottom:1}}>
                       {fmtVal(key, det.raw)}<span style={{fontSize:"0.62rem",marginLeft:3}}>{unitLabel(key)}</span>
                     </div>
