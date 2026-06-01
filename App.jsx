@@ -650,7 +650,7 @@ export default function App() {
                       {fmtVal(key, det.raw)}<span style={{fontSize:"0.62rem",marginLeft:3}}>{unitLabel(key)}</span>
                     </div>
                     <div style={{fontSize:"0.58rem",color:col,fontWeight:700,marginBottom:2}}>
-                      {isPos?"⬆ Compression +"+det.delta.toFixed(1):isNeg?"⬇ Expansion "+det.delta.toFixed(1):"→ Neutral"}
+                      {isPos?"⬆ +"+det.delta.toFixed(1):isNeg?"⬇ "+det.delta.toFixed(1):"➡ 0"}
                     </div>
                     <div style={{fontSize:"0.56rem",color:C.muted,fontFamily:"monospace",lineHeight:1.3}}>{det.desc}</div>
                   </div>
