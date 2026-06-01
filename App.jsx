@@ -650,7 +650,14 @@ export default function App() {
                       {fmtVal(key, det.raw)}<span style={{fontSize:"0.62rem",marginLeft:3}}>{unitLabel(key)}</span>
                     </div>
                     <div style={{fontSize:"0.58rem",color:col,fontWeight:700,marginBottom:2}}>
-                      {isPos?"⬆ +"+det.delta.toFixed(1):isNeg?"⬇ "+det.delta.toFixed(1):"➡ 0"}
+                      {(() => {
+                        const prev = modalInfo.prevRaw?.[key];
+                        const curr = det.raw;
+                        if (prev == null || curr == null) return "➡ N/A";
+                        const change = curr - prev;
+                        if (Math.abs(change) < 0.01) return "➡ 0";
+                        return change > 0 ? `⬆ +${Math.abs(change).toFixed(2)}` : `⬇ ${change.toFixed(2)}`;
+                      })()}
                     </div>
                     <div style={{fontSize:"0.56rem",color:C.muted,fontFamily:"monospace",lineHeight:1.3}}>{det.desc}</div>
                   </div>
